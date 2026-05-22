@@ -13,29 +13,31 @@ system-wide and does **not** record or transmit any audio.
 
 Requires **macOS 13 (Ventura) or later**.
 
-## Build
+## Build (Xcode)
 
-This repo defines the Xcode project with [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-so the project file stays clean and reviewable in git.
+Create the app project in Xcode and drop in the sources from this repo.
 
-```sh
-brew install xcodegen
-xcodegen generate      # creates muteMe.xcodeproj
-open muteMe.xcodeproj
-```
-
-Then build & run from Xcode (⌘R). The `KeyboardShortcuts` Swift package is
-resolved automatically.
-
-> The project file is generated and git-ignored — re-run `xcodegen generate`
-> after pulling changes to `project.yml`.
+1. **File → New → Project → macOS → App.** Set:
+   - Product Name: `muteMe`
+   - Organization Identifier: `com.ardacanbakis` (Bundle ID becomes `com.ardacanbakis.muteMe`)
+   - Interface: SwiftUI, Language: Swift
+2. Delete the template's `muteMeApp.swift` and `ContentView.swift`.
+3. Add the files from `Sources/muteMe/` to the target (Copy items if needed):
+   `AppDelegate.swift`, `StatusItemController.swift`, `PillRenderer.swift`,
+   `MicMuteController.swift`, `HotKeyManager.swift`, `LaunchAtLogin.swift`,
+   `PreferencesView.swift`.
+4. **File → Add Package Dependencies…** →
+   `https://github.com/sindresorhus/KeyboardShortcuts` (Up to Next Major from 2.0.0).
+5. Target **Info** tab: add **Application is agent (UIElement) = YES** and a
+   **Privacy - Microphone Usage Description** string.
+6. Target **Signing & Capabilities**: set your Team, add **App Sandbox**, and
+   enable **Audio Input** under it.
+7. Build & run (⌘R). The app is menubar-only — look for the **ON AIR** pill in
+   the menu bar.
 
 ## Project layout
 
 ```
-project.yml                 XcodeGen spec (target, signing, deps, Info.plist keys)
-Support/Info.plist          LSUIElement (menubar-only), usage strings
-Support/muteMe.entitlements App Sandbox + audio-input (App-Store-ready)
 Sources/muteMe/
   AppDelegate.swift         App entry point, window + controller wiring
   StatusItemController.swift Menubar item, click routing, context menu
@@ -50,9 +52,9 @@ Sources/muteMe/
 
 ### Homebrew (Developer ID + notarized)
 
-1. Archive a Release build in Xcode (Product → Archive) or via `xcodebuild`.
-2. Sign with your **Developer ID Application** certificate (Hardened Runtime is
-   already enabled in `project.yml`).
+1. Archive a Release build in Xcode (Product → Archive).
+2. Sign with your **Developer ID Application** certificate and enable
+   **Hardened Runtime** in the target's build settings.
 3. Notarize and staple:
    ```sh
    xcrun notarytool submit muteMe.zip --keychain-profile "AC_PROFILE" --wait
@@ -62,5 +64,6 @@ Sources/muteMe/
 
 ### App Store (later)
 
-The code is already sandboxed with the `device.audio-input` entitlement. Switch
-the target to App Store provisioning and submit — no source changes needed.
+With App Sandbox + the `device.audio-input` entitlement enabled, switch the
+target to App Store provisioning and submit — no source changes needed.
+

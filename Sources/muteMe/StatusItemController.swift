@@ -53,7 +53,12 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         let muted = currentMuted
         button.image = PillRenderer.image(
-            on: !muted, onColor: settings.onColor, offColor: settings.offColor)
+            style: settings.buttonStyle,
+            on: !muted,
+            onText: settings.onText,
+            offText: settings.offText,
+            onColor: settings.onColor,
+            offColor: settings.offColor)
         button.toolTip = muted ? "Microphone muted — click to go live" : "Microphone live — click to mute"
         muteMenuItem?.title = muted ? "Unmute Microphone" : "Mute Microphone"
     }

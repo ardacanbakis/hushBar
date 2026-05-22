@@ -1,57 +1,55 @@
 import AppKit
 
-/// Draws the menubar pill image for each state, matching the reference design:
-/// a red filled "ON AIR" pill when the mic is live, and a gray outlined
-/// "OFF AIR" pill when muted.
+/// Draws the menubar control as a toggle switch: a rounded pill track with a
+/// white knob and an "On"/"Off" label. Knob sits right + colored track when the
+/// mic is live (On); knob sits left + gray track when muted (Off).
 enum PillRenderer {
 
     private static let height: CGFloat = 18
-    private static let horizontalPadding: CGFloat = 9
-    private static let fontSize: CGFloat = 11
+    private static let width: CGFloat = 52
+    private static let knobInset: CGFloat = 2
 
-    static func image(muted: Bool) -> NSImage {
-        let title = muted ? "OFF AIR" : "ON AIR"
+    static func image(on: Bool, onColor: NSColor, offColor: NSColor) -> NSImage {
+        let size = NSSize(width: width, height: height)
+        let image = NSImage(size: size)
+        image.lockFocus()
 
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
-        let textColor: NSColor = muted ? .secondaryLabelColor : .white
+        // Track
+        let trackRect = NSRect(origin: .zero, size: size)
+        let radius = height / 2
+        let track = NSBezierPath(roundedRect: trackRect, xRadius: radius, yRadius: radius)
+        (on ? onColor : offColor).setFill()
+        track.fill()
 
+        // Knob
+        let knobDiameter = height - knobInset * 2
+        let knobX = on ? (width - knobDiameter - knobInset) : knobInset
+        let knobRect = NSRect(x: knobX, y: knobInset, width: knobDiameter, height: knobDiameter)
+        NSColor.white.setFill()
+        NSBezierPath(ovalIn: knobRect).fill()
+
+        // Label, placed in the open space opposite the knob.
+        let title = on ? "On" : "Off"
+        let font = NSFont.systemFont(ofSize: 10, weight: .bold)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: textColor,
-            .kern: 0.5,
+            .foregroundColor: NSColor.white,
         ]
         let attributed = NSAttributedString(string: title, attributes: attributes)
         let textSize = attributed.size()
 
-        let width = ceil(textSize.width) + horizontalPadding * 2
-        let size = NSSize(width: width, height: height)
-
-        let image = NSImage(size: size)
-        image.lockFocus()
-
-        let rect = NSRect(origin: .zero, size: size).insetBy(dx: 0.75, dy: 0.75)
-        let radius = rect.height / 2
-        let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-
-        if muted {
-            NSColor.tertiaryLabelColor.setStroke()
-            path.lineWidth = 1.5
-            path.stroke()
-        } else {
-            NSColor.systemRed.setFill()
-            path.fill()
-        }
+        let labelCenterX: CGFloat = on
+            ? (width - knobDiameter - knobInset) / 2
+            : (knobInset + knobDiameter + width) / 2
 
         let textRect = NSRect(
-            x: (size.width - textSize.width) / 2,
-            y: (size.height - textSize.height) / 2,
+            x: labelCenterX - textSize.width / 2,
+            y: (height - textSize.height) / 2,
             width: textSize.width,
             height: textSize.height)
         attributed.draw(in: textRect)
 
         image.unlockFocus()
-
-        // Colored artwork, so it must not be tinted as a template.
         image.isTemplate = false
         return image
     }

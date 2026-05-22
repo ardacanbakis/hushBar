@@ -5,6 +5,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let mic = MicMuteController()
+    private let settings = AppSettings.shared
     private var statusController: StatusItemController?
     private var hotKeyManager: HotKeyManager?
     private var preferencesWindow: NSWindow?
@@ -18,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusController = StatusItemController(mic: mic) { [weak self] in
+        statusController = StatusItemController(mic: mic, settings: settings) { [weak self] in
             self?.showPreferences()
         }
         hotKeyManager = HotKeyManager { [weak self] in
@@ -28,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showPreferences() {
         if preferencesWindow == nil {
-            let hosting = NSHostingController(rootView: PreferencesView(mic: mic))
+            let hosting = NSHostingController(rootView: PreferencesView(mic: mic, settings: settings))
             let window = NSWindow(contentViewController: hosting)
             window.title = "muteMe Preferences"
             window.styleMask = [.titled, .closable]

@@ -3,26 +3,25 @@ import CoreAudio
 
 /// Owns the system microphone's mute state.
 ///
-/// Primary path: toggle the input device's hardware mute flag
-/// (`kAudioDevicePropertyMute`), which applies driver-level to every app.
-/// Fallback for devices without a settable mute flag: drive the input volume
-/// to zero and restore the previous level on unmute.
+/// Applies the input device's hardware mute flag (`kAudioDevicePropertyMute`)
+/// across every input channel — many devices (including the built-in mic)
+/// expose mute on the individual channels rather than the master element.
+/// Devices with no settable mute fall back to forcing input volume to zero.
 ///
-/// Reading/writing the mute flag does not touch audio samples, so this does not
-/// trigger the macOS microphone (TCC) permission prompt.
+/// The published `isMuted` follows the user's intent so the control stays
+/// responsive even on hardware that ignores the request.
 final class MicMuteController: ObservableObject {
 
     @Published private(set) var isMuted: Bool = false
 
-    /// Called on the main queue whenever `isMuted` changes for any reason
-    /// (including external changes made elsewhere in the system).
+    /// Called on the main queue whenever `isMuted` changes.
     var onStateChange: ((Bool) -> Void)?
 
     private var deviceID = AudioObjectID(kAudioObjectUnknown)
     private let listenerQueue = DispatchQueue(label: "com.ardacanbakis.muteMe.coreaudio")
 
-    /// Volume saved before a fallback mute, so it can be restored on unmute.
-    private var savedVolume: Float32?
+    /// Per-element volume saved before a fallback mute, restored on unmute.
+    private var savedVolumes: [AudioObjectPropertyElement: Float32] = [:]
 
     private var defaultDeviceListener: AudioObjectPropertyListenerBlock?
     private var deviceMuteListener: AudioObjectPropertyListenerBlock?
@@ -33,7 +32,7 @@ final class MicMuteController: ObservableObject {
         deviceID = Self.defaultInputDevice()
         installDefaultDeviceListener()
         installDeviceMuteListener()
-        refreshStateFromDevice()
+        isMuted = Self.readMuted(deviceID)
     }
 
     deinit {
@@ -49,34 +48,46 @@ final class MicMuteController: ObservableObject {
 
     func setMuted(_ muted: Bool) {
         guard deviceID != AudioObjectID(kAudioObjectUnknown) else { return }
-
-        if Self.deviceSupportsMute(deviceID) {
-            Self.setDeviceMute(deviceID, muted: muted)
-        } else {
-            applyVolumeFallback(muted: muted)
-        }
-
-        // Re-read so published state reflects what the hardware actually did.
-        refreshStateFromDevice()
+        apply(muted: muted, to: deviceID)
+        updateMuted(muted)
     }
 
-    // MARK: - State sync
+    // MARK: - State
 
     private func updateMuted(_ value: Bool) {
-        let changed = value != isMuted
-        isMuted = value
-        if changed { onStateChange?(value) }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let changed = value != self.isMuted
+            self.isMuted = value
+            if changed { self.onStateChange?(value) }
+        }
     }
 
-    private func refreshStateFromDevice() {
-        let muted: Bool
-        if Self.deviceSupportsMute(deviceID) {
-            muted = Self.deviceMuteValue(deviceID)
+    private func apply(muted: Bool, to device: AudioObjectID) {
+        let muteElements = Self.settableMuteElements(device)
+        if !muteElements.isEmpty {
+            for element in muteElements {
+                Self.setMute(device, element: element, muted: muted)
+            }
         } else {
-            muted = (Self.inputVolume(deviceID) ?? 1) <= 0.0001
+            applyVolumeFallback(muted: muted, device: device)
         }
-        DispatchQueue.main.async { [weak self] in
-            self?.updateMuted(muted)
+    }
+
+    private func applyVolumeFallback(muted: Bool, device: AudioObjectID) {
+        let volumeElements = Self.settableVolumeElements(device)
+        if muted {
+            for element in volumeElements {
+                if savedVolumes[element] == nil {
+                    savedVolumes[element] = Self.volume(device, element: element) ?? 1
+                }
+                Self.setVolume(device, element: element, value: 0)
+            }
+        } else {
+            for element in volumeElements {
+                Self.setVolume(device, element: element, value: savedVolumes[element] ?? 1)
+            }
+            savedVolumes.removeAll()
         }
     }
 
@@ -87,7 +98,6 @@ final class MicMuteController: ObservableObject {
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             self?.handleDefaultDeviceChanged()
         }
@@ -108,27 +118,25 @@ final class MicMuteController: ObservableObject {
     }
 
     private func handleDefaultDeviceChanged() {
-        let wantedMuted = isMuted
+        let intended = isMuted
         removeDeviceMuteListener()
         deviceID = Self.defaultInputDevice()
         installDeviceMuteListener()
-        // Carry the user's intended state onto the newly-selected device.
-        setMuted(wantedMuted)
+        setMuted(intended)
     }
 
-    // MARK: - Device mute change handling (external changes)
+    // MARK: - External mute change handling
 
     private func installDeviceMuteListener() {
         guard deviceID != AudioObjectID(kAudioObjectUnknown),
-              Self.deviceSupportsMute(deviceID) else { return }
-
+              !Self.settableMuteElements(deviceID).isEmpty else { return }
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
             mScope: kAudioObjectPropertyScopeInput,
             mElement: kAudioObjectPropertyElementMain)
-
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            self?.refreshStateFromDevice()
+            guard let self else { return }
+            self.updateMuted(Self.readMuted(self.deviceID))
         }
         deviceMuteListener = block
         AudioObjectAddPropertyListenerBlock(deviceID, &address, listenerQueue, block)
@@ -145,21 +153,6 @@ final class MicMuteController: ObservableObject {
         deviceMuteListener = nil
     }
 
-    // MARK: - Volume fallback
-
-    private func applyVolumeFallback(muted: Bool) {
-        if muted {
-            if savedVolume == nil {
-                savedVolume = Self.inputVolume(deviceID) ?? 1.0
-            }
-            Self.setInputVolume(deviceID, value: 0.0)
-        } else {
-            let restore = savedVolume ?? 1.0
-            Self.setInputVolume(deviceID, value: restore)
-            savedVolume = nil
-        }
-    }
-
     // MARK: - CoreAudio helpers
 
     private static func defaultInputDevice() -> AudioObjectID {
@@ -174,74 +167,110 @@ final class MicMuteController: ObservableObject {
         return deviceID
     }
 
-    private static func deviceSupportsMute(_ device: AudioObjectID) -> Bool {
-        guard device != AudioObjectID(kAudioObjectUnknown) else { return false }
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyMute,
-            mScope: kAudioObjectPropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMain)
-        guard AudioObjectHasProperty(device, &address) else { return false }
-        var settable: DarwinBoolean = false
-        let status = AudioObjectIsPropertySettable(device, &address, &settable)
-        return status == noErr && settable.boolValue
-    }
-
-    private static func deviceMuteValue(_ device: AudioObjectID) -> Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyMute,
-            mScope: kAudioObjectPropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMain)
-        var muted: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted)
-        return muted != 0
-    }
-
-    private static func setDeviceMute(_ device: AudioObjectID, muted: Bool) {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyMute,
-            mScope: kAudioObjectPropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMain)
-        var value: UInt32 = muted ? 1 : 0
-        let size = UInt32(MemoryLayout<UInt32>.size)
-        AudioObjectSetPropertyData(device, &address, 0, nil, size, &value)
-    }
-
-    /// Reads input volume from the master element, falling back to channel 1.
-    private static func inputVolume(_ device: AudioObjectID) -> Float32? {
-        for element in [kAudioObjectPropertyElementMain, 1] {
-            var address = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyVolumeScalar,
-                mScope: kAudioObjectPropertyScopeInput,
-                mElement: AudioObjectPropertyElement(element))
-            guard AudioObjectHasProperty(device, &address) else { continue }
-            var volume: Float32 = 0
-            var size = UInt32(MemoryLayout<Float32>.size)
-            if AudioObjectGetPropertyData(device, &address, 0, nil, &size, &volume) == noErr {
-                return volume
-            }
+    /// Master element plus one element per input channel.
+    private static func candidateElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
+        var elements: [AudioObjectPropertyElement] = [kAudioObjectPropertyElementMain]
+        let channels = inputChannelCount(device)
+        if channels > 0 {
+            elements += (1...channels).map { AudioObjectPropertyElement($0) }
         }
-        return nil
+        return elements
     }
 
-    /// Writes input volume to whichever elements are settable (master and/or channels).
-    private static func setInputVolume(_ device: AudioObjectID, value: Float32) {
-        var didSet = false
-        for element in [kAudioObjectPropertyElementMain, 1, 2] {
+    private static func inputChannelCount(_ device: AudioObjectID) -> UInt32 {
+        guard device != AudioObjectID(kAudioObjectUnknown) else { return 0 }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr,
+              size > 0 else { return 0 }
+        let raw = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(size), alignment: MemoryLayout<AudioBufferList>.alignment)
+        defer { raw.deallocate() }
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, raw) == noErr else { return 0 }
+        let list = UnsafeMutableAudioBufferListPointer(
+            raw.assumingMemoryBound(to: AudioBufferList.self))
+        return list.reduce(0) { $0 + $1.mNumberChannels }
+    }
+
+    private static func settableMuteElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
+        settableElements(device, selector: kAudioDevicePropertyMute)
+    }
+
+    private static func settableVolumeElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
+        settableElements(device, selector: kAudioDevicePropertyVolumeScalar)
+    }
+
+    private static func settableElements(
+        _ device: AudioObjectID, selector: AudioObjectPropertySelector
+    ) -> [AudioObjectPropertyElement] {
+        guard device != AudioObjectID(kAudioObjectUnknown) else { return [] }
+        return candidateElements(device).filter { element in
             var address = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyVolumeScalar,
+                mSelector: selector,
                 mScope: kAudioObjectPropertyScopeInput,
-                mElement: AudioObjectPropertyElement(element))
-            guard AudioObjectHasProperty(device, &address) else { continue }
+                mElement: element)
+            guard AudioObjectHasProperty(device, &address) else { return false }
             var settable: DarwinBoolean = false
-            guard AudioObjectIsPropertySettable(device, &address, &settable) == noErr,
-                  settable.boolValue else { continue }
-            var v = value
-            let size = UInt32(MemoryLayout<Float32>.size)
-            if AudioObjectSetPropertyData(device, &address, 0, nil, size, &v) == noErr {
-                didSet = true
-            }
+            return AudioObjectIsPropertySettable(device, &address, &settable) == noErr
+                && settable.boolValue
         }
-        _ = didSet
+    }
+
+    private static func setMute(_ device: AudioObjectID, element: AudioObjectPropertyElement, muted: Bool) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyMute,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: element)
+        var value: UInt32 = muted ? 1 : 0
+        AudioObjectSetPropertyData(
+            device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
+    }
+
+    private static func muteValue(_ device: AudioObjectID, element: AudioObjectPropertyElement) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyMute,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: element)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value)
+        return value != 0
+    }
+
+    private static func volume(_ device: AudioObjectID, element: AudioObjectPropertyElement) -> Float32? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyVolumeScalar,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: element)
+        guard AudioObjectHasProperty(device, &address) else { return nil }
+        var value: Float32 = 0
+        var size = UInt32(MemoryLayout<Float32>.size)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value
+    }
+
+    private static func setVolume(_ device: AudioObjectID, element: AudioObjectPropertyElement, value: Float32) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyVolumeScalar,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: element)
+        var v = value
+        AudioObjectSetPropertyData(
+            device, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
+    }
+
+    private static func readMuted(_ device: AudioObjectID) -> Bool {
+        let muteElements = settableMuteElements(device)
+        if !muteElements.isEmpty {
+            return muteElements.allSatisfy { muteValue(device, element: $0) }
+        }
+        let volumeElements = settableVolumeElements(device)
+        if !volumeElements.isEmpty {
+            return volumeElements.allSatisfy { (volume(device, element: $0) ?? 1) <= 0.0001 }
+        }
+        return false
     }
 }

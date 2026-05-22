@@ -1,28 +1,42 @@
 import AppKit
+import Combine
 
-/// Manages the menubar status item: renders the pill, routes left-click to a
-/// mute toggle, and right-click (or control-click) to a context menu.
+/// Manages the menubar status item: renders the toggle switch, routes
+/// left-click to a mute toggle, and right-click (or control-click) to a menu.
 final class StatusItemController: NSObject {
 
     private let statusItem: NSStatusItem
     private let mic: MicMuteController
+    private let settings: AppSettings
     private let onOpenPreferences: () -> Void
+
+    private var currentMuted = false
+    private var cancellables = Set<AnyCancellable>()
 
     private lazy var contextMenu: NSMenu = makeMenu()
 
-    init(mic: MicMuteController, onOpenPreferences: @escaping () -> Void) {
+    init(mic: MicMuteController, settings: AppSettings, onOpenPreferences: @escaping () -> Void) {
         self.mic = mic
+        self.settings = settings
         self.onOpenPreferences = onOpenPreferences
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         super.init()
 
         configureButton()
-        render(muted: mic.isMuted)
+        currentMuted = mic.isMuted
+        refresh()
 
         mic.onStateChange = { [weak self] muted in
-            self?.render(muted: muted)
+            self?.currentMuted = muted
+            self?.refresh()
         }
+
+        // Re-render live as the user edits colors in Preferences.
+        settings.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in self?.refresh() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Setup
@@ -35,9 +49,11 @@ final class StatusItemController: NSObject {
         button.imagePosition = .imageOnly
     }
 
-    private func render(muted: Bool) {
+    private func refresh() {
         guard let button = statusItem.button else { return }
-        button.image = PillRenderer.image(muted: muted)
+        let muted = currentMuted
+        button.image = PillRenderer.image(
+            on: !muted, onColor: settings.onColor, offColor: settings.offColor)
         button.toolTip = muted ? "Microphone muted — click to go live" : "Microphone live — click to mute"
         muteMenuItem?.title = muted ? "Unmute Microphone" : "Mute Microphone"
     }

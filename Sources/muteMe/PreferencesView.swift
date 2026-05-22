@@ -3,14 +3,23 @@ import KeyboardShortcuts
 
 struct PreferencesView: View {
     @ObservedObject var mic: MicMuteController
+    @ObservedObject var settings: AppSettings
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
 
     var body: some View {
         Form {
-            Section {
+            Section("Global Shortcut") {
                 KeyboardShortcuts.Recorder("Toggle mute:", name: .toggleMute)
-            } header: {
-                Text("Global Shortcut")
+            }
+
+            Section("Appearance") {
+                ColorPicker("Live (On) color", selection: Binding(
+                    get: { Color(nsColor: settings.onColor) },
+                    set: { settings.onColor = NSColor($0) }))
+                ColorPicker("Muted (Off) color", selection: Binding(
+                    get: { Color(nsColor: settings.offColor) },
+                    set: { settings.offColor = NSColor($0) }))
+                Button("Reset to defaults") { settings.resetColors() }
             }
 
             Section {
@@ -25,7 +34,7 @@ struct PreferencesView: View {
                     Text("Microphone")
                     Spacer()
                     Text(mic.isMuted ? "Muted" : "Live")
-                        .foregroundColor(mic.isMuted ? .secondary : .red)
+                        .foregroundColor(mic.isMuted ? .secondary : Color(nsColor: settings.onColor))
                         .fontWeight(.semibold)
                 }
             }

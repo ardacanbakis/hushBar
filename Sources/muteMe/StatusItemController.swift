@@ -2,7 +2,7 @@ import AppKit
 
 /// Manages the menubar status item: renders the pill, routes left-click to a
 /// mute toggle, and right-click (or control-click) to a context menu.
-final class StatusItemController {
+final class StatusItemController: NSObject {
 
     private let statusItem: NSStatusItem
     private let mic: MicMuteController
@@ -14,6 +14,8 @@ final class StatusItemController {
         self.mic = mic
         self.onOpenPreferences = onOpenPreferences
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        super.init()
 
         configureButton()
         render(muted: mic.isMuted)

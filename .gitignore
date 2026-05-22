@@ -1,0 +1,17 @@
+# Xcode
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Distribution artifacts
+*.dmg
+*.zip
+*.app

@@ -1,4 +1,4 @@
-# mcDrop
+# muteMe
 
 A lightweight macOS menubar app that mutes/unmutes your microphone globally —
 for every app at once — with one click or a global hotkey.
@@ -20,8 +20,8 @@ so the project file stays clean and reviewable in git.
 
 ```sh
 brew install xcodegen
-xcodegen generate      # creates mcDrop.xcodeproj
-open mcDrop.xcodeproj
+xcodegen generate      # creates muteMe.xcodeproj
+open muteMe.xcodeproj
 ```
 
 Then build & run from Xcode (⌘R). The `KeyboardShortcuts` Swift package is
@@ -35,8 +35,8 @@ resolved automatically.
 ```
 project.yml                 XcodeGen spec (target, signing, deps, Info.plist keys)
 Support/Info.plist          LSUIElement (menubar-only), usage strings
-Support/mcDrop.entitlements App Sandbox + audio-input (App-Store-ready)
-Sources/mcDrop/
+Support/muteMe.entitlements App Sandbox + audio-input (App-Store-ready)
+Sources/muteMe/
   AppDelegate.swift         App entry point, window + controller wiring
   StatusItemController.swift Menubar item, click routing, context menu
   PillRenderer.swift        Draws the ON AIR / OFF AIR pill
@@ -55,8 +55,8 @@ Sources/mcDrop/
    already enabled in `project.yml`).
 3. Notarize and staple:
    ```sh
-   xcrun notarytool submit mcDrop.zip --keychain-profile "AC_PROFILE" --wait
-   xcrun stapler staple mcDrop.app
+   xcrun notarytool submit muteMe.zip --keychain-profile "AC_PROFILE" --wait
+   xcrun stapler staple muteMe.app
    ```
 4. Package as a DMG and publish a Homebrew **Cask** pointing at the release.
 

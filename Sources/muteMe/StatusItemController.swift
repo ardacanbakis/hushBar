@@ -91,7 +91,7 @@ final class StatusItemController {
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
-            title: "Quit mcDrop", action: #selector(quit), keyEquivalent: "q")
+            title: "Quit muteMe", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 

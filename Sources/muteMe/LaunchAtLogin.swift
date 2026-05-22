@@ -17,7 +17,7 @@ enum LaunchAtLogin {
                     }
                 }
             } catch {
-                NSLog("mcDrop: failed to update launch-at-login: \(error)")
+                NSLog("muteMe: failed to update launch-at-login: \(error)")
             }
         }
     }

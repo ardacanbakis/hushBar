@@ -14,7 +14,7 @@ struct PreferencesView: View {
             }
 
             Section {
-                Toggle("Launch mcDrop at login", isOn: $launchAtLogin)
+                Toggle("Launch muteMe at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { newValue in
                         LaunchAtLogin.isEnabled = newValue
                     }

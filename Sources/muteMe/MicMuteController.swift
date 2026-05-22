@@ -19,7 +19,7 @@ final class MicMuteController: ObservableObject {
     var onStateChange: ((Bool) -> Void)?
 
     private var deviceID = AudioObjectID(kAudioObjectUnknown)
-    private let listenerQueue = DispatchQueue(label: "com.ardacanbakis.mcDrop.coreaudio")
+    private let listenerQueue = DispatchQueue(label: "com.ardacanbakis.muteMe.coreaudio")
 
     /// Volume saved before a fallback mute, so it can be restored on unmute.
     private var savedVolume: Float32?

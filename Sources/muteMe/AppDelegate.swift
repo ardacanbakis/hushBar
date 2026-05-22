@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if preferencesWindow == nil {
             let hosting = NSHostingController(rootView: PreferencesView(mic: mic))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "mcDrop Preferences"
+            window.title = "muteMe Preferences"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

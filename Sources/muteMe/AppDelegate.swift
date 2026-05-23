@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import SwiftUI
 
 @main
@@ -19,11 +20,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        requestMicrophoneAccess()
         statusController = StatusItemController(mic: mic, settings: settings) { [weak self] in
             self?.showPreferences()
         }
         hotKeyManager = HotKeyManager { [weak self] in
             self?.mic.toggle()
+        }
+    }
+
+    /// Microphone authorization is required for our CoreAudio device writes to
+    /// affect the real input device system-wide; without it macOS virtualizes
+    /// them. We never open a capture session, so no recording actually occurs.
+    private func requestMicrophoneAccess() {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        NSLog("muteMe: microphone authorization status=%ld", status.rawValue)
+        if status == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                NSLog("muteMe: microphone access granted=%d", granted ? 1 : 0)
+            }
         }
     }
 

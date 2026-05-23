@@ -49,7 +49,8 @@ final class MicMuteController: ObservableObject {
     func setMuted(_ muted: Bool) {
         guard deviceID != AudioObjectID(kAudioObjectUnknown) else { return }
         apply(muted: muted, to: deviceID)
-        updateMuted(muted)
+        // Reflect the real global state rather than assuming the write stuck.
+        updateMuted(Self.readMuted(deviceID))
     }
 
     // MARK: - State

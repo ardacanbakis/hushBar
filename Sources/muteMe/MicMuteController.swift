@@ -64,39 +64,44 @@ final class MicMuteController: ObservableObject {
     }
 
     private func apply(muted: Bool, to device: AudioObjectID) {
+        logDeviceInfoOnce(device)
         let elements = Self.candidateElements(device)
 
-        // Attempt the hardware mute flag on every input element. We don't gate
-        // on `IsPropertySettable` because some drivers report a property as
-        // non-settable yet still accept the write (and vice versa).
-        var muteApplied = false
+        // Set the hardware mute flag on every input element that has it.
         for element in elements where Self.hasProperty(device, kAudioDevicePropertyMute, element: element) {
             let status = Self.setMute(device, element: element, muted: muted)
-            NSLog("muteMe: set mute=%d element=%u -> status=%d", muted ? 1 : 0, element, Int(status))
-            if status == noErr { muteApplied = true }
+            let readback = Self.muteValue(device, element: element)
+            NSLog("muteMe: mute=%d el=%u status=%d readback=%d", muted ? 1 : 0, element, Int(status), readback ? 1 : 0)
         }
 
-        if muteApplied { return }
-
-        // Fallback: drive input volume to zero for devices without a mute flag.
-        NSLog("muteMe: no mute property accepted the write; falling back to volume")
-        applyVolumeFallback(muted: muted, device: device)
-    }
-
-    private func applyVolumeFallback(muted: Bool, device: AudioObjectID) {
-        let volumeElements = Self.volumeElements(device)
-        if muted {
-            for element in volumeElements {
+        // Also drive input volume to zero. On devices where the mute flag is
+        // cosmetic (e.g. some built-in mics) this is what actually cuts audio.
+        for element in elements where Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element) {
+            if muted {
                 if savedVolumes[element] == nil {
                     savedVolumes[element] = Self.volume(device, element: element) ?? 1
                 }
-                Self.setVolume(device, element: element, value: 0)
+                let status = Self.setVolume(device, element: element, value: 0)
+                let readback = Self.volume(device, element: element) ?? -1
+                NSLog("muteMe: vol->0 el=%u status=%d readback=%.3f", element, Int(status), Double(readback))
+            } else {
+                let status = Self.setVolume(device, element: element, value: savedVolumes[element] ?? 1)
+                NSLog("muteMe: vol restore el=%u status=%d", element, Int(status))
             }
-        } else {
-            for element in volumeElements {
-                Self.setVolume(device, element: element, value: savedVolumes[element] ?? 1)
-            }
-            savedVolumes.removeAll()
+        }
+        if !muted { savedVolumes.removeAll() }
+    }
+
+    private var didLogInfo = false
+    private func logDeviceInfoOnce(_ device: AudioObjectID) {
+        guard !didLogInfo else { return }
+        didLogInfo = true
+        NSLog("muteMe: default input id=%u name=%@ channels=%u",
+              device, Self.deviceName(device), Self.inputChannelCount(device))
+        for element in Self.candidateElements(device) {
+            let hasMute = Self.hasProperty(device, kAudioDevicePropertyMute, element: element)
+            let hasVol = Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element)
+            NSLog("muteMe: el=%u hasMute=%d hasVol=%d", element, hasMute ? 1 : 0, hasVol ? 1 : 0)
         }
     }
 
@@ -176,14 +181,15 @@ final class MicMuteController: ObservableObject {
         return deviceID
     }
 
-    /// Master element plus one element per input channel.
+    /// Master element plus channel elements. Always probes the first couple of
+    /// channels even when the stream-configuration query reports none.
     private static func candidateElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
-        var elements: [AudioObjectPropertyElement] = [kAudioObjectPropertyElementMain]
+        var set: Set<AudioObjectPropertyElement> = [kAudioObjectPropertyElementMain, 1, 2]
         let channels = inputChannelCount(device)
         if channels > 0 {
-            elements += (1...channels).map { AudioObjectPropertyElement($0) }
+            for i in 1...channels { set.insert(AudioObjectPropertyElement(i)) }
         }
-        return elements
+        return set.sorted()
     }
 
     private static func inputChannelCount(_ device: AudioObjectID) -> UInt32 {
@@ -258,14 +264,28 @@ final class MicMuteController: ObservableObject {
         return value
     }
 
-    private static func setVolume(_ device: AudioObjectID, element: AudioObjectPropertyElement, value: Float32) {
+    @discardableResult
+    private static func setVolume(_ device: AudioObjectID, element: AudioObjectPropertyElement, value: Float32) -> OSStatus {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyVolumeScalar,
             mScope: kAudioObjectPropertyScopeInput,
             mElement: element)
         var v = value
-        AudioObjectSetPropertyData(
+        return AudioObjectSetPropertyData(
             device, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
+    }
+
+    private static func deviceName(_ device: AudioObjectID) -> String {
+        guard device != AudioObjectID(kAudioObjectUnknown) else { return "unknown" }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name) == noErr,
+              let cf = name?.takeRetainedValue() else { return "unknown" }
+        return cf as String
     }
 
     private static func readMuted(_ device: AudioObjectID) -> Bool {

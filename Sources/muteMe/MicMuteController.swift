@@ -90,6 +90,34 @@ final class MicMuteController: ObservableObject {
             }
         }
         if !muted { savedVolumes.removeAll() }
+
+        // Last resort: some drivers expose the *effective* control on the
+        // global scope rather than the input scope we target above.
+        applyGlobalScope(muted: muted, to: device)
+    }
+
+    private func applyGlobalScope(muted: Bool, to device: AudioObjectID) {
+        var muteAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyMute,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        if AudioObjectHasProperty(device, &muteAddr) {
+            var value: UInt32 = muted ? 1 : 0
+            let status = AudioObjectSetPropertyData(
+                device, &muteAddr, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
+            NSLog("muteMe: global mute=%d status=%d", muted ? 1 : 0, Int(status))
+        }
+
+        var volAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyVolumeScalar,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        if AudioObjectHasProperty(device, &volAddr) {
+            var v: Float32 = muted ? 0 : 1
+            let status = AudioObjectSetPropertyData(
+                device, &volAddr, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
+            NSLog("muteMe: global vol=%.1f status=%d", Double(v), Int(status))
+        }
     }
 
     private var didLogInfo = false

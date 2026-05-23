@@ -7,14 +7,62 @@ struct PreferencesView: View {
 
     var body: some View {
         TabView {
-            StyleSettingsView(settings: settings)
-                .tabItem { Label("Style", systemImage: "paintbrush") }
-            GeneralSettingsView(mic: mic, settings: settings)
+            TopHalf { GeneralSettingsView(mic: mic, settings: settings) }
                 .tabItem { Label("General", systemImage: "gearshape") }
-            AboutView()
+            TopHalf { StyleSettingsView(settings: settings) }
+                .tabItem { Label("Style", systemImage: "paintbrush") }
+            TopHalf { AboutView() }
                 .tabItem { Label("About", systemImage: "person.crop.circle") }
         }
-        .frame(width: 440)
+        .frame(width: 470, height: 680)
+    }
+}
+
+/// Centers its content within the top half of the available area.
+private struct TopHalf<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        VStack(spacing: 0) {
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - General
+
+private struct GeneralSettingsView: View {
+    @ObservedObject var mic: MicMuteController
+    @ObservedObject var settings: AppSettings
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+
+    var body: some View {
+        VStack(spacing: 14) {
+            GroupBox("Global Shortcut") {
+                KeyboardShortcuts.Recorder("Toggle mute:", name: .toggleMute)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(6)
+            }
+            GroupBox {
+                Toggle("Launch muteMe at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { newValue in LaunchAtLogin.isEnabled = newValue }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(6)
+            }
+            GroupBox {
+                HStack {
+                    Text("Microphone")
+                    Spacer()
+                    Text(mic.isMuted ? "Muted" : "Live")
+                        .foregroundColor(mic.isMuted ? .secondary : Color(nsColor: settings.onColor))
+                        .fontWeight(.semibold)
+                }
+                .padding(6)
+            }
+        }
+        .frame(width: 360)
+        .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
     }
 }
 
@@ -24,41 +72,39 @@ private struct StyleSettingsView: View {
     @ObservedObject var settings: AppSettings
 
     var body: some View {
-        Form {
-            Section("Preview") {
+        VStack(spacing: 14) {
+            GroupBox("Preview") {
                 HStack(spacing: 16) {
-                    Spacer()
                     preview(on: true)
                     preview(on: false)
-                    Spacer()
                 }
-                .padding(.vertical, 4)
+                .padding(8)
+                .frame(maxWidth: .infinity)
             }
-
-            Section("Button") {
-                Picker("Style", selection: $settings.buttonStyle) {
-                    ForEach(PillStyle.allCases) { style in
-                        Text(style.displayName).tag(style)
+            GroupBox("Button") {
+                VStack(spacing: 8) {
+                    Picker("Style", selection: $settings.buttonStyle) {
+                        ForEach(PillStyle.allCases) { Text($0.displayName).tag($0) }
                     }
+                    TextField("On label", text: $settings.onText)
+                    TextField("Off label", text: $settings.offText)
                 }
-                TextField("On label", text: $settings.onText)
-                TextField("Off label", text: $settings.offText)
+                .padding(6)
             }
-
-            Section("Colors") {
-                ColorPicker("On color", selection: Binding(
-                    get: { Color(nsColor: settings.onColor) },
-                    set: { settings.onColor = NSColor($0) }))
-                ColorPicker("Off color", selection: Binding(
-                    get: { Color(nsColor: settings.offColor) },
-                    set: { settings.offColor = NSColor($0) }))
+            GroupBox("Colors") {
+                VStack(spacing: 8) {
+                    ColorPicker("On color", selection: Binding(
+                        get: { Color(nsColor: settings.onColor) },
+                        set: { settings.onColor = NSColor($0) }))
+                    ColorPicker("Off color", selection: Binding(
+                        get: { Color(nsColor: settings.offColor) },
+                        set: { settings.offColor = NSColor($0) }))
+                }
+                .padding(6)
             }
-
-            Section {
-                Button("Reset to defaults") { settings.resetStyle() }
-            }
+            Button("Reset to defaults") { settings.resetStyle() }
         }
-        .formStyle(.grouped)
+        .frame(width: 360)
     }
 
     private func preview(on: Bool) -> some View {
@@ -72,58 +118,23 @@ private struct StyleSettingsView: View {
     }
 }
 
-// MARK: - General
-
-private struct GeneralSettingsView: View {
-    @ObservedObject var mic: MicMuteController
-    @ObservedObject var settings: AppSettings
-    @State private var launchAtLogin = LaunchAtLogin.isEnabled
-
-    var body: some View {
-        Form {
-            Section("Global Shortcut") {
-                KeyboardShortcuts.Recorder("Toggle mute:", name: .toggleMute)
-            }
-
-            Section {
-                Toggle("Launch muteMe at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { newValue in
-                        LaunchAtLogin.isEnabled = newValue
-                    }
-            }
-
-            Section {
-                HStack {
-                    Text("Microphone")
-                    Spacer()
-                    Text(mic.isMuted ? "Muted" : "Live")
-                        .foregroundColor(mic.isMuted ? .secondary : Color(nsColor: settings.onColor))
-                        .fontWeight(.semibold)
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
-    }
-}
-
 // MARK: - About
 
 private struct SocialLink: Identifiable {
+    let brand: Brand
     let label: String
-    let symbol: String
     let url: URL
     var id: String { label }
 }
 
 private struct AboutView: View {
     private let links: [SocialLink] = [
-        .init(label: "Website", symbol: "globe", url: URL(string: "https://ardacanbakis.com")!),
-        .init(label: "GitHub", symbol: "chevron.left.forwardslash.chevron.right", url: URL(string: "https://github.com/ardacanbakis")!),
-        .init(label: "Instagram", symbol: "camera.fill", url: URL(string: "https://www.instagram.com/arda.canbakiss/")!),
-        .init(label: "YouTube", symbol: "play.rectangle.fill", url: URL(string: "https://www.youtube.com/@arda.canbakis")!),
-        .init(label: "Spotify", symbol: "music.note", url: URL(string: "https://open.spotify.com/user/11146430303")!),
-        .init(label: "LinkedIn", symbol: "briefcase.fill", url: URL(string: "https://linkedin.com/in/ardacanbakis")!),
+        .init(brand: .website, label: "Website", url: URL(string: "https://ardacanbakis.com")!),
+        .init(brand: .github, label: "GitHub", url: URL(string: "https://github.com/ardacanbakis")!),
+        .init(brand: .instagram, label: "Instagram", url: URL(string: "https://www.instagram.com/arda.canbakiss/")!),
+        .init(brand: .youtube, label: "YouTube", url: URL(string: "https://www.youtube.com/@arda.canbakis")!),
+        .init(brand: .spotify, label: "Spotify", url: URL(string: "https://open.spotify.com/user/11146430303")!),
+        .init(brand: .linkedin, label: "LinkedIn", url: URL(string: "https://linkedin.com/in/ardacanbakis")!),
     ]
 
     private var version: String {
@@ -134,8 +145,7 @@ private struct AboutView: View {
     var body: some View {
         VStack(spacing: 14) {
             Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 64, height: 64)
+                .resizable().frame(width: 64, height: 64)
 
             VStack(spacing: 2) {
                 Text("muteMe").font(.title2).fontWeight(.bold)
@@ -144,33 +154,56 @@ private struct AboutView: View {
                 Text(version).font(.caption).foregroundColor(.secondary)
             }
 
-            HStack(spacing: 14) {
+            HStack(spacing: 16) {
                 ForEach(links) { link in
-                    Link(destination: link.url) {
-                        Image(systemName: link.symbol).font(.system(size: 17))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.secondary)
-                    .help(link.label)
+                    Link(destination: link.url) { BrandIcon(brand: link.brand, size: 24) }
+                        .buttonStyle(.plain)
+                        .help(link.label)
                 }
             }
-            .padding(.top, 2)
+            .padding(.top, 4)
 
             footer
         }
         .padding(28)
-        .frame(maxWidth: .infinity)
     }
 
     private var footer: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Text("Created with")
             Image(systemName: "heart.fill").foregroundColor(.red)
             Text("by")
-            Link("Arda Canbakis", destination: URL(string: "https://ardacanbakis.com")!)
+            DancingName(text: "Arda Canbakis", url: URL(string: "https://ardacanbakis.com")!)
             Text("© 2026")
         }
         .font(.caption)
         .foregroundColor(.secondary)
+    }
+}
+
+/// A playful, color-shifting, gently bobbing rendition of a name that opens a URL.
+private struct DancingName: View {
+    let text: String
+    let url: URL
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 0) {
+                ForEach(Array(text.enumerated()), id: \.offset) { index, ch in
+                    Text(String(ch))
+                        .offset(y: sin(t * 3 + Double(index) * 0.45) * 2.2)
+                }
+            }
+            .font(.callout.weight(.bold))
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [.red, .orange, .yellow, .green, .blue, .purple, .red],
+                    startPoint: .leading, endPoint: .trailing))
+            .hueRotation(.degrees(t * 60))
+        }
+        .onTapGesture { openURL(url) }
+        .help("Open ardacanbakis.com")
     }
 }

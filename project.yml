@@ -32,7 +32,6 @@ targets:
     entitlements:
       path: Support/muteMe.entitlements
       properties:
-        com.apple.security.app-sandbox: true
         com.apple.security.device.audio-input: true
     settings:
       base:

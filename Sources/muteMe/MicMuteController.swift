@@ -64,18 +64,27 @@ final class MicMuteController: ObservableObject {
     }
 
     private func apply(muted: Bool, to device: AudioObjectID) {
-        let muteElements = Self.settableMuteElements(device)
-        if !muteElements.isEmpty {
-            for element in muteElements {
-                Self.setMute(device, element: element, muted: muted)
-            }
-        } else {
-            applyVolumeFallback(muted: muted, device: device)
+        let elements = Self.candidateElements(device)
+
+        // Attempt the hardware mute flag on every input element. We don't gate
+        // on `IsPropertySettable` because some drivers report a property as
+        // non-settable yet still accept the write (and vice versa).
+        var muteApplied = false
+        for element in elements where Self.hasProperty(device, kAudioDevicePropertyMute, element: element) {
+            let status = Self.setMute(device, element: element, muted: muted)
+            NSLog("muteMe: set mute=%d element=%u -> status=%d", muted ? 1 : 0, element, Int(status))
+            if status == noErr { muteApplied = true }
         }
+
+        if muteApplied { return }
+
+        // Fallback: drive input volume to zero for devices without a mute flag.
+        NSLog("muteMe: no mute property accepted the write; falling back to volume")
+        applyVolumeFallback(muted: muted, device: device)
     }
 
     private func applyVolumeFallback(muted: Bool, device: AudioObjectID) {
-        let volumeElements = Self.settableVolumeElements(device)
+        let volumeElements = Self.volumeElements(device)
         if muted {
             for element in volumeElements {
                 if savedVolumes[element] == nil {
@@ -129,7 +138,7 @@ final class MicMuteController: ObservableObject {
 
     private func installDeviceMuteListener() {
         guard deviceID != AudioObjectID(kAudioObjectUnknown),
-              !Self.settableMuteElements(deviceID).isEmpty else { return }
+              !Self.muteElements(deviceID).isEmpty else { return }
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
             mScope: kAudioObjectPropertyScopeInput,
@@ -195,37 +204,34 @@ final class MicMuteController: ObservableObject {
         return list.reduce(0) { $0 + $1.mNumberChannels }
     }
 
-    private static func settableMuteElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
-        settableElements(device, selector: kAudioDevicePropertyMute)
+    private static func hasProperty(
+        _ device: AudioObjectID, _ selector: AudioObjectPropertySelector,
+        element: AudioObjectPropertyElement
+    ) -> Bool {
+        guard device != AudioObjectID(kAudioObjectUnknown) else { return false }
+        var address = AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: element)
+        return AudioObjectHasProperty(device, &address)
     }
 
-    private static func settableVolumeElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
-        settableElements(device, selector: kAudioDevicePropertyVolumeScalar)
+    private static func muteElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
+        candidateElements(device).filter { hasProperty(device, kAudioDevicePropertyMute, element: $0) }
     }
 
-    private static func settableElements(
-        _ device: AudioObjectID, selector: AudioObjectPropertySelector
-    ) -> [AudioObjectPropertyElement] {
-        guard device != AudioObjectID(kAudioObjectUnknown) else { return [] }
-        return candidateElements(device).filter { element in
-            var address = AudioObjectPropertyAddress(
-                mSelector: selector,
-                mScope: kAudioObjectPropertyScopeInput,
-                mElement: element)
-            guard AudioObjectHasProperty(device, &address) else { return false }
-            var settable: DarwinBoolean = false
-            return AudioObjectIsPropertySettable(device, &address, &settable) == noErr
-                && settable.boolValue
-        }
+    private static func volumeElements(_ device: AudioObjectID) -> [AudioObjectPropertyElement] {
+        candidateElements(device).filter { hasProperty(device, kAudioDevicePropertyVolumeScalar, element: $0) }
     }
 
-    private static func setMute(_ device: AudioObjectID, element: AudioObjectPropertyElement, muted: Bool) {
+    @discardableResult
+    private static func setMute(_ device: AudioObjectID, element: AudioObjectPropertyElement, muted: Bool) -> OSStatus {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
             mScope: kAudioObjectPropertyScopeInput,
             mElement: element)
         var value: UInt32 = muted ? 1 : 0
-        AudioObjectSetPropertyData(
+        return AudioObjectSetPropertyData(
             device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
     }
 
@@ -263,13 +269,13 @@ final class MicMuteController: ObservableObject {
     }
 
     private static func readMuted(_ device: AudioObjectID) -> Bool {
-        let muteElements = settableMuteElements(device)
-        if !muteElements.isEmpty {
-            return muteElements.allSatisfy { muteValue(device, element: $0) }
+        let muteEls = muteElements(device)
+        if !muteEls.isEmpty {
+            return muteEls.allSatisfy { muteValue(device, element: $0) }
         }
-        let volumeElements = settableVolumeElements(device)
-        if !volumeElements.isEmpty {
-            return volumeElements.allSatisfy { (volume(device, element: $0) ?? 1) <= 0.0001 }
+        let volumeEls = volumeElements(device)
+        if !volumeEls.isEmpty {
+            return volumeEls.allSatisfy { (volume(device, element: $0) ?? 1) <= 0.0001 }
         }
         return false
     }

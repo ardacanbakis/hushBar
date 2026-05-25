@@ -49,14 +49,24 @@ AppKit agent app; SwiftUI only for the Preferences window. Source in
   right-click/control-click opens the `NSMenu`. Subscribes to
   `settings.objectWillChange` to re-render live. Must inherit `NSObject`
   (required for `NSMenuDelegate`).
-- **PillRenderer.swift** — draws the menu bar image per state/style.
-- **AppSettings.swift** — `@Published` settings persisted in `UserDefaults`;
-  `PillStyle` enum (`toggleSwitch` / `pill`). `AppSettings.shared` singleton.
+- **PillRenderer.swift** — draws the menu bar image via `image(preset:on:)`.
+  Shapes: `pill` (capsule), `roundedRect`, `rectangle` (text badges), and
+  `toggleSwitch` (slider + knob).
+- **AppSettings.swift** — `@Published` settings persisted in `UserDefaults`.
+  Preset-based: a `[BarPreset]` array + `selectedPresetID`, stored as JSON.
+  `BarPreset` = name, `BarShape`, on/off text, on/off `ColorComponents`,
+  `TextCase` (asTyped/upper/lower). Defaults: On Air / Live·Hush / Live·Muted.
+  Also `playSoundOnToggle`. `AppSettings.shared` singleton. Helpers:
+  `updatePreset`, `duplicatePreset`, `deletePreset`, `resetToDefaults`.
 - **HotKeyManager.swift** — global hotkey via the **KeyboardShortcuts** SPM
   package (Carbon-backed, no Accessibility permission). Default ⇧⌘M.
 - **LaunchAtLogin.swift** — `SMAppService.mainApp` (macOS 13+).
-- **PreferencesView.swift** — SwiftUI `TabView`: General / Style / About. About
-  tab has social links + an animated `DancingName`.
+- **PreferencesView.swift** — SwiftUI `TabView` (selection-bound for cross-tab
+  navigation): General / Style / About. General has the **preset carousel**
+  (Use/Edit per card; Edit jumps to Style with that preset loaded), shortcut,
+  launch-at-login, sound toggle, mic status. Style edits one preset live
+  (shape, labels, capitalization, colors) + Duplicate/Delete/Reset. About has
+  social links, a **Buy Me a Coffee** button, and an animated `DancingName`.
 - **BrandIcons.swift** — hand-built SwiftUI vector brand marks (no external asset
   fetch in this env).
 
@@ -91,14 +101,11 @@ changes).
 
 ## Distribution paths
 
-- **DMG + GitHub Releases**: Archive in Xcode → sign Developer ID → notarize →
-  package with `create-dmg` → upload to GitHub Releases. Users drag to
-  `/Applications`.
-- **Homebrew Cask**: create `ardacanbakis/homebrew-tap` repo, add
-  `Casks/hushbar.rb` pointing at the GitHub Release DMG. Users run
-  `brew install --cask ardacanbakis/tap/hushbar`.
-- **App Store (later)**: re-enable app-sandbox in `project.yml` entitlements, switch
-  to App Store provisioning.
+Full, step-by-step instructions live in **DISTRIBUTION.md**. README keeps only a
+short summary and links there. In brief: DMG + GitHub Releases (drag to
+`/Applications`), Homebrew Cask via `ardacanbakis/homebrew-tap`
+(`brew install --cask ardacanbakis/tap/hushbar`), or Mac App Store (re-enable
+app-sandbox in `project.yml`, switch to App Store provisioning).
 
 ## Conventions
 

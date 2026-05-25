@@ -30,6 +30,7 @@ final class StatusItemController: NSObject {
         mic.onStateChange = { [weak self] muted in
             self?.currentMuted = muted
             self?.refresh()
+            self?.playToggleSound(muted: muted)
         }
 
         // Re-render live as the user edits colors in Preferences.
@@ -52,15 +53,16 @@ final class StatusItemController: NSObject {
     private func refresh() {
         guard let button = statusItem.button else { return }
         let muted = currentMuted
-        button.image = PillRenderer.image(
-            style: settings.buttonStyle,
-            on: !muted,
-            onText: settings.onText,
-            offText: settings.offText,
-            onColor: settings.onColor,
-            offColor: settings.offColor)
+        button.image = PillRenderer.image(preset: settings.selectedPreset, on: !muted)
         button.toolTip = muted ? "Microphone muted — click to go live" : "Microphone live — click to mute"
         muteMenuItem?.title = muted ? "Unmute Microphone" : "Mute Microphone"
+    }
+
+    /// A subtle system tick on state change, if the user enabled it.
+    private func playToggleSound(muted: Bool) {
+        guard settings.playSoundOnToggle else { return }
+        let name = muted ? "Tink" : "Pop"
+        NSSound(named: NSSound.Name(name))?.play()
     }
 
     // MARK: - Click routing

@@ -141,75 +141,14 @@ Sources/hushBar/
 
 ## Distribution
 
-### Option 1 — Direct download (DMG)
+HushBar can be shipped three ways:
 
-The simplest path for new users: download a `.dmg`, drag HushBar to
-`/Applications`, and run it. No terminal, no Homebrew, no App Store needed.
+- **DMG on GitHub Releases** — users download and drag to Applications.
+- **Homebrew Cask** — `brew install --cask ardacanbakis/tap/hushbar`.
+- **Mac App Store** — re-enable the sandbox and submit.
 
-1. In Xcode: select the Release scheme, then **Product → Archive**.
-2. In the Organizer: **Distribute App → Developer ID**.
-3. Sign with your **Developer ID Application** certificate.
-4. Notarize and staple:
-   ```sh
-   xcrun notarytool submit HushBar.zip --keychain-profile "AC_PROFILE" --wait
-   xcrun stapler staple HushBar.app
-   ```
-5. Package as a DMG:
-   ```sh
-   brew install create-dmg
-   create-dmg --volname "HushBar" --app-drop-link 660 185 HushBar.dmg HushBar.app
-   ```
-6. Upload the `.dmg` to a **GitHub Release** on this repo. Users download it
-   directly from the Releases page.
-
-### Option 2 — Homebrew Cask (one-liner for power users)
-
-Once you have a notarized DMG on GitHub Releases, create a
-[Homebrew tap](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap) so users
-can install with a single command.
-
-**Step 1** — Create a public tap repo (e.g. `ardacanbakis/homebrew-tap` on GitHub).
-
-**Step 2** — Add `Casks/hushbar.rb` to that repo:
-
-```ruby
-cask "hushbar" do
-  version "1.0"
-  sha256 "REPLACE_WITH_SHA256_OF_DMG"
-
-  url "https://github.com/ardacanbakis/mcdrop/releases/download/v#{version}/HushBar-#{version}.dmg"
-  name "HushBar"
-  desc "Mute your microphone globally from the menu bar"
-  homepage "https://ardacanbakis.com"
-
-  app "HushBar.app"
-end
-```
-
-Get the SHA256 to paste in:
-
-```sh
-shasum -a 256 HushBar.dmg
-```
-
-**Step 3** — Users install with:
-
-```sh
-brew install --cask ardacanbakis/tap/hushbar
-```
-
-Or first add the tap, then install any app from it without the prefix:
-
-```sh
-brew tap ardacanbakis/tap
-brew install --cask hushbar
-```
-
-### Option 3 — App Store (later)
-
-Re-enable the App Sandbox by adding `com.apple.security.app-sandbox: true` back
-to the `entitlements.properties` in `project.yml`, switch the target to App
-Store provisioning, and submit.
+Full step-by-step instructions (signing, notarization, cask setup, App Store)
+live in **[DISTRIBUTION.md](DISTRIBUTION.md)**.
 
 ---
 

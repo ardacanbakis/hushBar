@@ -1,20 +1,50 @@
 import SwiftUI
 import KeyboardShortcuts
 
+enum PrefsTab: Hashable {
+    case general, style, about
+}
+
 struct PreferencesView: View {
     @ObservedObject var mic: MicMuteController
     @ObservedObject var settings: AppSettings
 
+    @State private var selectedTab: PrefsTab = .general
+    /// Which preset the Style tab is editing. Defaults to the selected one.
+    @State private var editingPresetID: UUID?
+
     var body: some View {
-        TabView {
-            TopHalf { GeneralSettingsView(mic: mic, settings: settings) }
-                .tabItem { Label("General", systemImage: "gearshape") }
-            TopHalf { StyleSettingsView(settings: settings) }
-                .tabItem { Label("Style", systemImage: "paintbrush") }
+        TabView(selection: $selectedTab) {
+            TopHalf {
+                GeneralSettingsView(
+                    mic: mic, settings: settings,
+                    onEditPreset: { id in
+                        editingPresetID = id
+                        selectedTab = .style
+                    })
+            }
+            .tabItem { Label("General", systemImage: "slider.horizontal.3") }
+            .tag(PrefsTab.general)
+
+            TopHalf {
+                StyleSettingsView(settings: settings, editingPresetID: editingBinding)
+            }
+            .tabItem { Label("Style", systemImage: "paintpalette") }
+            .tag(PrefsTab.style)
+
             TopHalf { AboutView() }
-                .tabItem { Label("About", systemImage: "person.crop.circle") }
+                .tabItem { Label("About", systemImage: "info.circle") }
+                .tag(PrefsTab.about)
         }
-        .frame(width: 470, height: 680)
+        .frame(width: 480, height: 720)
+    }
+
+    /// Bridges the optional editing id to a non-optional binding, defaulting to
+    /// the currently selected preset when nothing has been chosen yet.
+    private var editingBinding: Binding<UUID> {
+        Binding(
+            get: { editingPresetID ?? settings.selectedPresetID },
+            set: { editingPresetID = $0 })
     }
 }
 
@@ -30,39 +60,130 @@ private struct TopHalf<Content: View>: View {
     }
 }
 
+/// A small icon + title header shown at the top of each page.
+private struct PageHeader: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.tint)
+            Text(title).font(.headline)
+            Text(subtitle)
+                .font(.caption).foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+}
+
 // MARK: - General
 
 private struct GeneralSettingsView: View {
     @ObservedObject var mic: MicMuteController
     @ObservedObject var settings: AppSettings
+    let onEditPreset: (UUID) -> Void
+
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
 
     var body: some View {
         VStack(spacing: 14) {
+            PageHeader(icon: "slider.horizontal.3", title: "General",
+                       subtitle: "Pick a look, set your shortcut, and tune behavior.")
+
+            GroupBox("Menu Bar Style") {
+                PresetCarousel(settings: settings, onEdit: onEditPreset)
+                    .padding(6)
+            }
+
             GroupBox("Global Shortcut") {
                 KeyboardShortcuts.Recorder("Toggle mute:", name: .toggleMute)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
             }
+
             GroupBox {
-                Toggle("Launch HushBar at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { newValue in LaunchAtLogin.isEnabled = newValue }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(6)
+                VStack(spacing: 8) {
+                    Toggle("Launch HushBar at login", isOn: $launchAtLogin)
+                        .onChange(of: launchAtLogin) { newValue in LaunchAtLogin.isEnabled = newValue }
+                    Toggle("Play a sound when toggling", isOn: $settings.playSoundOnToggle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(6)
             }
+
             GroupBox {
                 HStack {
                     Text("Microphone")
                     Spacer()
                     Text(mic.isMuted ? "Muted" : "Live")
-                        .foregroundColor(mic.isMuted ? .secondary : Color(nsColor: settings.onColor))
+                        .foregroundColor(mic.isMuted ? .secondary : Color(nsColor: settings.selectedPreset.onColor.nsColor))
                         .fontWeight(.semibold)
                 }
                 .padding(6)
             }
         }
-        .frame(width: 360)
+        .frame(width: 380)
         .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
+    }
+}
+
+/// Horizontal scroller of saved presets with Use / Edit actions.
+private struct PresetCarousel: View {
+    @ObservedObject var settings: AppSettings
+    let onEdit: (UUID) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(settings.presets) { preset in
+                    PresetCard(
+                        preset: preset,
+                        isSelected: preset.id == settings.selectedPresetID,
+                        onUse: { settings.selectedPresetID = preset.id },
+                        onEdit: { onEdit(preset.id) })
+                }
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 2)
+        }
+    }
+}
+
+private struct PresetCard: View {
+    let preset: BarPreset
+    let isSelected: Bool
+    let onUse: () -> Void
+    let onEdit: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(nsImage: PillRenderer.image(preset: preset, on: true))
+            Image(nsImage: PillRenderer.image(preset: preset, on: false))
+            Text(preset.name)
+                .font(.caption).fontWeight(.medium)
+                .lineLimit(1)
+            HStack(spacing: 6) {
+                Button("Use", action: onUse)
+                    .controlSize(.small)
+                    .disabled(isSelected)
+                Button("Edit", action: onEdit)
+                    .controlSize(.small)
+            }
+        }
+        .padding(10)
+        .frame(width: 132)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? Color.accentColor : Color.gray.opacity(0.3),
+                        lineWidth: isSelected ? 2 : 1))
     }
 }
 
@@ -70,51 +191,112 @@ private struct GeneralSettingsView: View {
 
 private struct StyleSettingsView: View {
     @ObservedObject var settings: AppSettings
+    @Binding var editingPresetID: UUID
+
+    var body: some View {
+        VStack(spacing: 14) {
+            PageHeader(icon: "paintpalette", title: "Style",
+                       subtitle: "Design the menu bar control and save it as a preset.")
+
+            Picker("Editing preset", selection: $editingPresetID) {
+                ForEach(settings.presets) { Text($0.name).tag($0.id) }
+            }
+            .frame(width: 360)
+
+            if let binding = presetBinding {
+                PresetEditor(settings: settings, preset: binding,
+                             editingPresetID: $editingPresetID)
+            } else {
+                Text("No preset selected.").foregroundColor(.secondary)
+            }
+        }
+        .frame(width: 380)
+    }
+
+    /// A binding to the element of `settings.presets` currently being edited.
+    private var presetBinding: Binding<BarPreset>? {
+        let id = editingPresetID
+        guard settings.presets.contains(where: { $0.id == id }) else { return nil }
+        return Binding(
+            get: { settings.presets.first(where: { $0.id == id }) ?? settings.presets[0] },
+            set: { settings.updatePreset($0) })
+    }
+}
+
+private struct PresetEditor: View {
+    @ObservedObject var settings: AppSettings
+    @Binding var preset: BarPreset
+    @Binding var editingPresetID: UUID
 
     var body: some View {
         VStack(spacing: 14) {
             GroupBox("Preview") {
                 HStack(spacing: 16) {
-                    preview(on: true)
-                    preview(on: false)
+                    Image(nsImage: PillRenderer.image(preset: preset, on: true))
+                    Image(nsImage: PillRenderer.image(preset: preset, on: false))
                 }
                 .padding(8)
                 .frame(maxWidth: .infinity)
             }
-            GroupBox("Button") {
+
+            GroupBox("Preset") {
                 VStack(spacing: 8) {
-                    Picker("Style", selection: $settings.buttonStyle) {
-                        ForEach(PillStyle.allCases) { Text($0.displayName).tag($0) }
+                    TextField("Preset name", text: $preset.name)
+                    Picker("Shape", selection: $preset.shape) {
+                        ForEach(BarShape.allCases) { shape in
+                            Label(shape.displayName, systemImage: shape.symbolName).tag(shape)
+                        }
                     }
-                    TextField("On label", text: $settings.onText)
-                    TextField("Off label", text: $settings.offText)
                 }
                 .padding(6)
             }
+
+            GroupBox("Labels") {
+                VStack(spacing: 8) {
+                    TextField("On label", text: $preset.onText)
+                    TextField("Off label", text: $preset.offText)
+                    Picker("Capitalization", selection: $preset.textCase) {
+                        ForEach(TextCase.allCases) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(6)
+            }
+
             GroupBox("Colors") {
                 VStack(spacing: 8) {
                     ColorPicker("On color", selection: Binding(
-                        get: { Color(nsColor: settings.onColor) },
-                        set: { settings.onColor = NSColor($0) }))
+                        get: { Color(nsColor: preset.onColor.nsColor) },
+                        set: { preset.onColor = ColorComponents(NSColor($0)) }))
                     ColorPicker("Off color", selection: Binding(
-                        get: { Color(nsColor: settings.offColor) },
-                        set: { settings.offColor = NSColor($0) }))
+                        get: { Color(nsColor: preset.offColor.nsColor) },
+                        set: { preset.offColor = ColorComponents(NSColor($0)) }))
                 }
                 .padding(6)
             }
-            Button("Reset to defaults") { settings.resetStyle() }
-        }
-        .frame(width: 360)
-    }
 
-    private func preview(on: Bool) -> some View {
-        Image(nsImage: PillRenderer.image(
-            style: settings.buttonStyle,
-            on: on,
-            onText: settings.onText,
-            offText: settings.offText,
-            onColor: settings.onColor,
-            offColor: settings.offColor))
+            HStack {
+                Button("Use This Preset") { settings.selectedPresetID = preset.id }
+                    .disabled(settings.selectedPresetID == preset.id)
+                Spacer()
+                Button("Duplicate") {
+                    if let newID = settings.duplicatePreset(preset.id) { editingPresetID = newID }
+                }
+                Button("Delete", role: .destructive) {
+                    let id = preset.id
+                    settings.deletePreset(id)
+                    editingPresetID = settings.selectedPresetID
+                }
+                .disabled(settings.presets.count <= 1)
+            }
+            .controlSize(.small)
+
+            Button("Reset all presets to defaults") {
+                settings.resetToDefaults()
+                editingPresetID = settings.selectedPresetID
+            }
+            .font(.caption)
+        }
     }
 }
 
@@ -163,6 +345,8 @@ private struct AboutView: View {
             }
             .padding(.top, 4)
 
+            BuyMeACoffeeButton()
+
             footer
         }
         .padding(28)
@@ -178,6 +362,31 @@ private struct AboutView: View {
         }
         .font(.caption)
         .foregroundColor(.secondary)
+    }
+}
+
+/// A friendly call-to-action that opens the creator's Buy Me a Coffee page.
+private struct BuyMeACoffeeButton: View {
+    @Environment(\.openURL) private var openURL
+    private let url = URL(string: "https://buymeacoffee.com/ardacanbakis")!
+
+    var body: some View {
+        Button {
+            openURL(url)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "cup.and.saucer.fill")
+                Text("Buy me a coffee")
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(
+                Capsule().fill(Color(red: 1.0, green: 0.86, blue: 0.0)))
+            .foregroundColor(.black)
+        }
+        .buttonStyle(.plain)
+        .help("Support HushBar — opens buymeacoffee.com")
     }
 }
 

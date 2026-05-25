@@ -1,29 +1,29 @@
 import AppKit
 
-/// Draws the menubar control in the selected style.
+/// Draws the menu bar control for a given preset and on/off state.
 ///
-/// - `.toggleSwitch`: a rounded track with a sliding white knob and a label
-///   (knob right + colored track when On, knob left + gray when Off).
-/// - `.pill`: the original badge — a filled colored pill when On, a gray
-///   outlined pill when Off.
+/// - `.toggleSwitch`: a rounded track with a sliding white knob and a label.
+/// - `.pill` / `.roundedRect` / `.rectangle`: a text badge whose corner radius
+///   varies by shape — filled + white text when On, outlined + colored text
+///   when Off.
 enum PillRenderer {
 
     private static let height: CGFloat = 18
 
-    static func image(
-        style: PillStyle,
-        on: Bool,
-        onText: String,
-        offText: String,
-        onColor: NSColor,
-        offColor: NSColor
-    ) -> NSImage {
-        let title = on ? onText : offText
-        switch style {
+    static func image(preset: BarPreset, on: Bool) -> NSImage {
+        let title = preset.text(on: on)
+        let onColor = preset.onColor.nsColor
+        let offColor = preset.offColor.nsColor
+
+        switch preset.shape {
         case .toggleSwitch:
             return toggleImage(on: on, title: title, onColor: onColor, offColor: offColor)
         case .pill:
-            return pillImage(on: on, title: title, onColor: onColor, offColor: offColor)
+            return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor, radius: height / 2)
+        case .roundedRect:
+            return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor, radius: 5)
+        case .rectangle:
+            return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor, radius: 0)
         }
     }
 
@@ -74,9 +74,11 @@ enum PillRenderer {
         return image
     }
 
-    // MARK: - Pill badge (original)
+    // MARK: - Text badge (pill / rounded / rectangle)
 
-    private static func pillImage(on: Bool, title: String, onColor: NSColor, offColor: NSColor) -> NSImage {
+    private static func badgeImage(
+        on: Bool, title: String, onColor: NSColor, offColor: NSColor, radius: CGFloat
+    ) -> NSImage {
         let horizontalPadding: CGFloat = 9
         let font = NSFont.systemFont(ofSize: 11, weight: .bold)
         let textColor: NSColor = on ? .white : offColor
@@ -92,7 +94,6 @@ enum PillRenderer {
         image.lockFocus()
 
         let rect = NSRect(origin: .zero, size: size).insetBy(dx: 0.75, dy: 0.75)
-        let radius = rect.height / 2
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
 
         if on {

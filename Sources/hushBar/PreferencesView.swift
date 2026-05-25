@@ -9,6 +9,11 @@ struct PreferencesView: View {
 
     @State private var selectedTab: PrefsTab = .general
     @State private var editingPresetID: UUID?
+    @State private var activeColorTarget: ColorTarget?
+
+    private var showingColorPanel: Bool {
+        selectedTab == .style && activeColorTarget != nil
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -22,15 +27,23 @@ struct PreferencesView: View {
             .tabItem { Label("General", systemImage: "gearshape") }
             .tag(PrefsTab.general)
 
-            StyleSettingsView(settings: settings, editingPresetID: editingBinding)
-                .tabItem { Label("Style", systemImage: "paintpalette") }
-                .tag(PrefsTab.style)
+            StyleSettingsView(
+                settings: settings,
+                editingPresetID: editingBinding,
+                activeColorTarget: $activeColorTarget
+            )
+            .tabItem { Label("Style", systemImage: "paintpalette") }
+            .tag(PrefsTab.style)
 
             AboutView()
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(PrefsTab.about)
         }
-        .frame(width: 640, height: 500)
+        .frame(width: showingColorPanel ? 856 : 640, height: 500)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showingColorPanel)
+        .onChange(of: selectedTab) { _ in
+            withAnimation { activeColorTarget = nil }
+        }
     }
 
     private var editingBinding: Binding<UUID> {
@@ -103,10 +116,33 @@ private struct GeneralSettingsView: View {
                 }
 
                 GroupBox {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 10) {
                         Toggle("Launch HushBar at login", isOn: $launchAtLogin)
                             .onChange(of: launchAtLogin) { newValue in LaunchAtLogin.isEnabled = newValue }
-                        Toggle("Play a sound when toggling", isOn: $settings.playSoundOnToggle)
+
+                        HStack {
+                            Text("Toggle sound")
+                            Spacer()
+                            Picker("", selection: $settings.toggleSound) {
+                                ForEach(ToggleSound.allCases) { sound in
+                                    Text(sound.displayName).tag(sound)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 110)
+                            .pickerStyle(.menu)
+
+                            Button {
+                                settings.toggleSound.play()
+                            } label: {
+                                Image(systemName: "play.circle.fill")
+                                    .foregroundColor(.accentColor)
+                                    .font(.system(size: 16))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(settings.toggleSound == .none)
+                            .opacity(settings.toggleSound == .none ? 0.3 : 1)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
@@ -138,8 +174,7 @@ private struct GeneralSettingsView: View {
 private struct StyleSettingsView: View {
     @ObservedObject var settings: AppSettings
     @Binding var editingPresetID: UUID
-
-    @State private var activeColorTarget: ColorTarget?
+    @Binding var activeColorTarget: ColorTarget?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -158,8 +193,7 @@ private struct StyleSettingsView: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }
-        .overlay(alignment: .topTrailing) {
+
             if let target = activeColorTarget, let binding = presetBinding {
                 let colorBinding = Binding<ColorComponents>(
                     get: {
@@ -173,18 +207,19 @@ private struct StyleSettingsView: View {
                         binding.wrappedValue = p
                     }
                 )
+                Divider()
                 ColorEditorPanel(
                     title: target == .on ? "On color" : "Off color",
                     color: colorBinding,
                     onDone: {
-                        withAnimation(.spring(response: 0.3)) { activeColorTarget = nil }
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                            activeColorTarget = nil
+                        }
                     }
                 )
-                .padding(10)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.3), value: activeColorTarget)
     }
 
     private var presetBinding: Binding<BarPreset>? {

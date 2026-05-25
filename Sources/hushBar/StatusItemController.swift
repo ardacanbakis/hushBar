@@ -58,11 +58,8 @@ final class StatusItemController: NSObject {
         muteMenuItem?.title = muted ? "Unmute Microphone" : "Mute Microphone"
     }
 
-    /// A subtle system tick on state change, if the user enabled it.
     private func playToggleSound(muted: Bool) {
-        guard settings.playSoundOnToggle else { return }
-        let name = muted ? "Tink" : "Pop"
-        NSSound(named: NSSound.Name(name))?.play()
+        settings.toggleSound.play()
     }
 
     // MARK: - Click routing

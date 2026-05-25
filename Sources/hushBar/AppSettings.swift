@@ -95,6 +95,44 @@ struct BarPreset: Codable, Identifiable, Equatable {
     }
 }
 
+/// Which sound plays when the mic is toggled.
+enum ToggleSound: String, CaseIterable, Identifiable, Codable {
+    case none, pop, tink, ping, glass, hero, funk, blow
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none:  return "None"
+        case .pop:   return "Pop"
+        case .tink:  return "Tink"
+        case .ping:  return "Ping"
+        case .glass: return "Glass"
+        case .hero:  return "Hero"
+        case .funk:  return "Funk"
+        case .blow:  return "Blow"
+        }
+    }
+
+    private var systemName: String? {
+        switch self {
+        case .none:  return nil
+        case .pop:   return "Pop"
+        case .tink:  return "Tink"
+        case .ping:  return "Ping"
+        case .glass: return "Glass"
+        case .hero:  return "Hero"
+        case .funk:  return "Funk"
+        case .blow:  return "Blow"
+        }
+    }
+
+    func play() {
+        guard let name = systemName else { return }
+        NSSound(named: NSSound.Name(name))?.play()
+    }
+}
+
 /// User-tunable settings, persisted in `UserDefaults`.
 /// Presets are stored as JSON; scalar prefs as their raw types.
 final class AppSettings: ObservableObject {
@@ -107,8 +145,8 @@ final class AppSettings: ObservableObject {
     @Published var selectedPresetID: UUID {
         didSet { UserDefaults.standard.set(selectedPresetID.uuidString, forKey: Keys.selectedPresetID) }
     }
-    @Published var playSoundOnToggle: Bool {
-        didSet { UserDefaults.standard.set(playSoundOnToggle, forKey: Keys.playSoundOnToggle) }
+    @Published var toggleSound: ToggleSound {
+        didSet { UserDefaults.standard.set(toggleSound.rawValue, forKey: Keys.toggleSound) }
     }
 
     /// The preset currently shown in the menu bar. Falls back to the first.
@@ -119,7 +157,7 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let presets = "presets.v1"
         static let selectedPresetID = "selectedPresetID"
-        static let playSoundOnToggle = "playSoundOnToggle"
+        static let toggleSound = "toggleSound"
     }
 
     static let defaultRed = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
@@ -160,7 +198,13 @@ final class AppSettings: ObservableObject {
             selectedPresetID = loaded[0].id
         }
 
-        playSoundOnToggle = d.bool(forKey: Keys.playSoundOnToggle)
+        if let raw = d.string(forKey: Keys.toggleSound),
+           let sound = ToggleSound(rawValue: raw) {
+            toggleSound = sound
+        } else {
+            // migrate from old bool key; default new installs to .pop
+            toggleSound = (d.object(forKey: "playSoundOnToggle") as? Bool == false) ? .none : .pop
+        }
     }
 
     // MARK: - Preset mutation

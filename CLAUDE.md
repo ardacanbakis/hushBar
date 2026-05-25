@@ -18,7 +18,7 @@ verification happens on the user's Mac. Don't claim a change "works"; describe
 what to verify in Xcode.
 
 - Active development branch: `claude/hopeful-maxwell-vOYoo`
-- User's local path: `/Users/ardac/Documents/GitHub/mcDrop`
+- User's local path: `/Users/ardac/mcdrop`
 
 ## Build / run (on the Mac)
 

@@ -43,3 +43,13 @@ targets:
         CODE_SIGN_STYLE: Automatic
         COMBINE_HIDPI_IMAGES: YES
         SWIFT_VERSION: "5.0"
+
+schemes:
+  hushBar:
+    build:
+      targets:
+        hushBar: all
+    run:
+      config: Debug
+    archive:
+      config: Release

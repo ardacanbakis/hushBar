@@ -45,7 +45,7 @@ private struct GeneralSettingsView: View {
                     .padding(6)
             }
             GroupBox {
-                Toggle("Launch muteMe at login", isOn: $launchAtLogin)
+                Toggle("Launch HushBar at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { newValue in LaunchAtLogin.isEnabled = newValue }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
@@ -148,7 +148,7 @@ private struct AboutView: View {
                 .resizable().frame(width: 64, height: 64)
 
             VStack(spacing: 2) {
-                Text("muteMe").font(.title2).fontWeight(.bold)
+                Text("HushBar").font(.title2).fontWeight(.bold)
                 Text("Mute your microphone from the menu bar.")
                     .font(.callout).foregroundColor(.secondary)
                 Text(version).font(.caption).foregroundColor(.secondary)

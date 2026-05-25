@@ -1,4 +1,4 @@
-# muteMe
+# HushBar
 
 A lightweight macOS menu bar app that mutes and unmutes your **microphone
 globally** — across every app at once — with a single click or a global
@@ -21,7 +21,7 @@ toggle that mirrors your mic's real state.
 - **Global hotkey** (default ⇧⌘M) to toggle from any app.
 - **Launch at login** toggle.
 - **Reflects external changes**: if another tool or macOS changes the mic state,
-  muteMe's indicator updates to match.
+  HushBar's indicator updates to match.
 - **Privacy-friendly**: muting just toggles a device flag — it never opens an
   audio stream, so no recording ever happens.
 
@@ -42,24 +42,18 @@ The Xcode project is generated from `project.yml` (and is git-ignored), so the
 first step on any machine is to generate it.
 
 ```sh
-# 1. Install the build tool (one time). Needs Homebrew: https://brew.sh
 brew install xcodegen
-
-# 2. Get the code
 git clone https://github.com/ardacanbakis/mcdrop.git
 cd mcdrop
-git checkout claude/hopeful-maxwell-vOYoo   # or main, once merged
-
-# 3. Generate and open the Xcode project
-xcodegen generate          # creates muteMe.xcodeproj
-open muteMe.xcodeproj
+xcodegen generate
+open hushBar.xcodeproj
 ```
 
 In Xcode:
 
 1. Wait a few seconds for the **KeyboardShortcuts** Swift package to resolve
    (you'll see it fetch in the status bar).
-2. *(Recommended)* Select the **muteMe** target → **Signing & Capabilities** →
+2. *(Recommended)* Select the **hushBar** target → **Signing & Capabilities** →
    set **Team** to your Apple ID (a free account is fine). If you leave it as
    None, choose **Sign to Run Locally** if Xcode complains about signing.
 3. Press **⌘R**.
@@ -86,15 +80,15 @@ app doesn't record — this just authorizes it to control the device).
   - **About** — links and credits.
 
 > **Run only one mic-mute app at a time.** Tools like MicDrop *continuously
-> re-assert* the same hardware mute flag muteMe uses. If two such apps run at
+> re-assert* the same hardware mute flag HushBar uses. If two such apps run at
 > once, they fight over the flag and neither wins reliably. Quit the others and
-> muteMe controls the mic cleanly.
+> HushBar controls the mic cleanly.
 
 ---
 
 ## How it works
 
-muteMe is a small AppKit "agent" app (`LSUIElement`), meaning it has no Dock
+HushBar is a small AppKit "agent" app (`LSUIElement`), meaning it has no Dock
 icon or main window — just a menu bar item.
 
 - **Muting** (`MicMuteController.swift`) uses **CoreAudio**. It finds the
@@ -121,45 +115,97 @@ icon or main window — just a menu bar item.
 
 For our device writes to affect the **real** hardware (not a virtualized
 per-process copy), macOS requires the app to be authorized for the microphone.
-muteMe requests this once at launch but never opens an audio stream.
+HushBar requests this once at launch but never opens an audio stream.
 
 ---
 
 ## Project layout
 
 ```
-project.yml                  XcodeGen spec (target, signing, deps, Info.plist keys)
-Support/Info.plist           LSUIElement (menu-bar-only), mic usage string
-Support/muteMe.entitlements  device.audio-input (sandbox off for Developer ID builds)
-Sources/muteMe/
-  AppDelegate.swift          App entry point, mic-permission request, window wiring
-  StatusItemController.swift Menu bar item, click routing, context menu
-  PillRenderer.swift         Draws the toggle-switch / ON AIR pill image
-  MicMuteController.swift    CoreAudio mute + device/volume handling + listeners
-  HotKeyManager.swift        Global shortcut registration
-  LaunchAtLogin.swift        SMAppService login-item toggle
-  AppSettings.swift          Persisted style/color/label settings
-  PreferencesView.swift      SwiftUI tabbed settings (General / Style / About)
-  BrandIcons.swift           Vector social icons for the About tab
+project.yml                   XcodeGen spec (target, signing, deps, Info.plist keys)
+Support/Info.plist            LSUIElement (menu-bar-only), mic usage string
+Support/hushBar.entitlements  device.audio-input (sandbox off for Developer ID builds)
+Sources/hushBar/
+  AppDelegate.swift           App entry point, mic-permission request, window wiring
+  StatusItemController.swift  Menu bar item, click routing, context menu
+  PillRenderer.swift          Draws the toggle-switch / ON AIR pill image
+  MicMuteController.swift     CoreAudio mute + device/volume handling + listeners
+  HotKeyManager.swift         Global shortcut registration
+  LaunchAtLogin.swift         SMAppService login-item toggle
+  AppSettings.swift           Persisted style/color/label settings
+  PreferencesView.swift       SwiftUI tabbed settings (General / Style / About)
+  BrandIcons.swift            Vector social icons for the About tab
 ```
 
 ---
 
 ## Distribution
 
-### Homebrew (Developer ID + notarized)
+### Option 1 — Direct download (DMG)
 
-1. Archive a Release build in Xcode (**Product → Archive**).
-2. Sign with your **Developer ID Application** certificate (Hardened Runtime is
-   enabled in `project.yml`).
-3. Notarize and staple:
+The simplest path for new users: download a `.dmg`, drag HushBar to
+`/Applications`, and run it. No terminal, no Homebrew, no App Store needed.
+
+1. In Xcode: select the Release scheme, then **Product → Archive**.
+2. In the Organizer: **Distribute App → Developer ID**.
+3. Sign with your **Developer ID Application** certificate.
+4. Notarize and staple:
    ```sh
-   xcrun notarytool submit muteMe.zip --keychain-profile "AC_PROFILE" --wait
-   xcrun stapler staple muteMe.app
+   xcrun notarytool submit HushBar.zip --keychain-profile "AC_PROFILE" --wait
+   xcrun stapler staple HushBar.app
    ```
-4. Package as a DMG and publish a Homebrew **Cask** pointing at the release.
+5. Package as a DMG:
+   ```sh
+   brew install create-dmg
+   create-dmg --volname "HushBar" --app-drop-link 660 185 HushBar.dmg HushBar.app
+   ```
+6. Upload the `.dmg` to a **GitHub Release** on this repo. Users download it
+   directly from the Releases page.
 
-### App Store (later)
+### Option 2 — Homebrew Cask (one-liner for power users)
+
+Once you have a notarized DMG on GitHub Releases, create a
+[Homebrew tap](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap) so users
+can install with a single command.
+
+**Step 1** — Create a public tap repo (e.g. `ardacanbakis/homebrew-tap` on GitHub).
+
+**Step 2** — Add `Casks/hushbar.rb` to that repo:
+
+```ruby
+cask "hushbar" do
+  version "1.0"
+  sha256 "REPLACE_WITH_SHA256_OF_DMG"
+
+  url "https://github.com/ardacanbakis/mcdrop/releases/download/v#{version}/HushBar-#{version}.dmg"
+  name "HushBar"
+  desc "Mute your microphone globally from the menu bar"
+  homepage "https://ardacanbakis.com"
+
+  app "HushBar.app"
+end
+```
+
+Get the SHA256 to paste in:
+
+```sh
+shasum -a 256 HushBar.dmg
+```
+
+**Step 3** — Users install with:
+
+```sh
+brew install --cask ardacanbakis/tap/hushbar
+```
+
+Or first add the tap, then install any app from it without the prefix:
+
+```sh
+brew tap ardacanbakis/tap
+brew install --cask hushbar
+```
+
+### Option 3 — App Store (later)
 
 Re-enable the App Sandbox by adding `com.apple.security.app-sandbox: true` back
 to the `entitlements.properties` in `project.yml`, switch the target to App
@@ -174,7 +220,7 @@ Store provisioning, and submit.
 - **No menu bar item appears** → it's a menu-bar-only app; check the top-right.
   Make sure the build succeeded and is running.
 - **macOS didn't ask for mic permission / muting won't stick** → enable it in
-  **System Settings → Privacy & Security → Microphone → muteMe**.
+  **System Settings → Privacy & Security → Microphone → HushBar**.
 - **Signing errors on build** → set a Team in Signing & Capabilities, or choose
   "Sign to Run Locally".
 

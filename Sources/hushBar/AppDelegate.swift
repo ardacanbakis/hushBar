@@ -34,10 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// them. We never open a capture session, so no recording actually occurs.
     private func requestMicrophoneAccess() {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        NSLog("muteMe: microphone authorization status=%ld", status.rawValue)
+        NSLog("hushBar: microphone authorization status=%ld", status.rawValue)
         if status == .notDetermined {
             AVCaptureDevice.requestAccess(for: .audio) { granted in
-                NSLog("muteMe: microphone access granted=%d", granted ? 1 : 0)
+                NSLog("hushBar: microphone access granted=%d", granted ? 1 : 0)
             }
         }
     }
@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if preferencesWindow == nil {
             let hosting = NSHostingController(rootView: PreferencesView(mic: mic, settings: settings))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "muteMe Preferences"
+            window.title = "HushBar Preferences"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

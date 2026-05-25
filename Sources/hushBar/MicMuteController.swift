@@ -18,7 +18,7 @@ final class MicMuteController: ObservableObject {
     var onStateChange: ((Bool) -> Void)?
 
     private var deviceID = AudioObjectID(kAudioObjectUnknown)
-    private let listenerQueue = DispatchQueue(label: "com.ardacanbakis.muteMe.coreaudio")
+    private let listenerQueue = DispatchQueue(label: "com.ardacanbakis.hushBar.coreaudio")
 
     /// Per-element volume saved before a fallback mute, restored on unmute.
     private var savedVolumes: [AudioObjectPropertyElement: Float32] = [:]
@@ -72,7 +72,7 @@ final class MicMuteController: ObservableObject {
         for element in elements where Self.hasProperty(device, kAudioDevicePropertyMute, element: element) {
             let status = Self.setMute(device, element: element, muted: muted)
             let readback = Self.muteValue(device, element: element)
-            NSLog("muteMe: mute=%d el=%u status=%d readback=%d", muted ? 1 : 0, element, Int(status), readback ? 1 : 0)
+            NSLog("hushBar: mute=%d el=%u status=%d readback=%d", muted ? 1 : 0, element, Int(status), readback ? 1 : 0)
         }
 
         // Also drive input volume to zero. On devices where the mute flag is
@@ -84,10 +84,10 @@ final class MicMuteController: ObservableObject {
                 }
                 let status = Self.setVolume(device, element: element, value: 0)
                 let readback = Self.volume(device, element: element) ?? -1
-                NSLog("muteMe: vol->0 el=%u status=%d readback=%.3f", element, Int(status), Double(readback))
+                NSLog("hushBar: vol->0 el=%u status=%d readback=%.3f", element, Int(status), Double(readback))
             } else {
                 let status = Self.setVolume(device, element: element, value: savedVolumes[element] ?? 1)
-                NSLog("muteMe: vol restore el=%u status=%d", element, Int(status))
+                NSLog("hushBar: vol restore el=%u status=%d", element, Int(status))
             }
         }
         if !muted { savedVolumes.removeAll() }
@@ -106,7 +106,7 @@ final class MicMuteController: ObservableObject {
             var value: UInt32 = muted ? 1 : 0
             let status = AudioObjectSetPropertyData(
                 device, &muteAddr, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
-            NSLog("muteMe: global mute=%d status=%d", muted ? 1 : 0, Int(status))
+            NSLog("hushBar: global mute=%d status=%d", muted ? 1 : 0, Int(status))
         }
 
         var volAddr = AudioObjectPropertyAddress(
@@ -117,7 +117,7 @@ final class MicMuteController: ObservableObject {
             var v: Float32 = muted ? 0 : 1
             let status = AudioObjectSetPropertyData(
                 device, &volAddr, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
-            NSLog("muteMe: global vol=%.1f status=%d", Double(v), Int(status))
+            NSLog("hushBar: global vol=%.1f status=%d", Double(v), Int(status))
         }
     }
 
@@ -125,12 +125,12 @@ final class MicMuteController: ObservableObject {
     private func logDeviceInfoOnce(_ device: AudioObjectID) {
         guard !didLogInfo else { return }
         didLogInfo = true
-        NSLog("muteMe: default input id=%u name=%@ channels=%u",
+        NSLog("hushBar: default input id=%u name=%@ channels=%u",
               device, Self.deviceName(device), Self.inputChannelCount(device))
         for element in Self.candidateElements(device) {
             let hasMute = Self.hasProperty(device, kAudioDevicePropertyMute, element: element)
             let hasVol = Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element)
-            NSLog("muteMe: el=%u hasMute=%d hasVol=%d", element, hasMute ? 1 : 0, hasVol ? 1 : 0)
+            NSLog("hushBar: el=%u hasMute=%d hasVol=%d", element, hasMute ? 1 : 0, hasVol ? 1 : 0)
         }
     }
 

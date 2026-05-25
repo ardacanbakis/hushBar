@@ -1,4 +1,4 @@
-name: muteMe
+name: hushBar
 options:
   bundleIdPrefix: com.ardacanbakis
   deploymentTarget:
@@ -11,31 +11,31 @@ packages:
     from: 2.0.0
 
 targets:
-  muteMe:
+  hushBar:
     type: application
     platform: macOS
     deploymentTarget: "13.0"
     sources:
-      - path: Sources/muteMe
+      - path: Sources/hushBar
     dependencies:
       - package: KeyboardShortcuts
     info:
       path: Support/Info.plist
       properties:
-        CFBundleDisplayName: muteMe
+        CFBundleDisplayName: HushBar
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         LSUIElement: true
         LSMinimumSystemVersion: "13.0"
-        NSMicrophoneUsageDescription: muteMe toggles the system microphone's mute state. It never records or transmits audio.
+        NSMicrophoneUsageDescription: HushBar toggles the system microphone's mute state. It never records or transmits audio.
         NSHumanReadableCopyright: ""
     entitlements:
-      path: Support/muteMe.entitlements
+      path: Support/hushBar.entitlements
       properties:
         com.apple.security.device.audio-input: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ardacanbakis.muteMe
+        PRODUCT_BUNDLE_IDENTIFIER: com.ardacanbakis.hushBar
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO

@@ -160,20 +160,35 @@ final class AppSettings: ObservableObject {
         static let toggleSound = "toggleSound"
     }
 
-    static let defaultRed = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
+    static let defaultRed  = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
     static let defaultGray = ColorComponents(r: 0.42, g: 0.44, b: 0.47)
 
     static func defaultPresets() -> [BarPreset] {
         [
-            BarPreset(name: "On Air", shape: .pill,
-                      onText: "ON AIR", offText: "OFF AIR",
-                      onColor: defaultRed, offColor: defaultGray),
-            BarPreset(name: "Live / Hush", shape: .roundedRect,
-                      onText: "LIVE", offText: "HUSH",
-                      onColor: defaultRed, offColor: defaultGray),
-            BarPreset(name: "Live / Muted", shape: .pill,
-                      onText: "LIVE", offText: "MUTED",
-                      onColor: defaultRed, offColor: defaultGray),
+            // Classic radio booth — pill, signal red
+            BarPreset(name: "ON AIR / Hush", shape: .pill,
+                      onText: "ON AIR", offText: "Hush",
+                      onColor: ColorComponents(r: 0.85, g: 0.12, b: 0.08),
+                      offColor: ColorComponents(r: 0.45, g: 0.45, b: 0.45),
+                      textCase: .asTyped),
+            // Streaming / content creation — rounded rect, green
+            BarPreset(name: "LIVE / Hushed", shape: .roundedRect,
+                      onText: "LIVE", offText: "Hushed",
+                      onColor: ColorComponents(r: 0.18, g: 0.72, b: 0.38),
+                      offColor: ColorComponents(r: 0.38, g: 0.42, b: 0.50),
+                      textCase: .asTyped),
+            // Playful — toggle switch, electric orange
+            BarPreset(name: "LIVE / Shhh", shape: .toggleSwitch,
+                      onText: "LIVE", offText: "Shhh",
+                      onColor: ColorComponents(r: 1.00, g: 0.45, b: 0.05),
+                      offColor: ColorComponents(r: 0.38, g: 0.43, b: 0.52),
+                      textCase: .asTyped),
+            // Dramatic all-caps — rectangle, deep purple
+            BarPreset(name: "ON AIR / Sssssh", shape: .rectangle,
+                      onText: "ON AIR", offText: "Sssssh",
+                      onColor: ColorComponents(r: 0.52, g: 0.18, b: 0.82),
+                      offColor: ColorComponents(r: 0.32, g: 0.33, b: 0.36),
+                      textCase: .upper),
         ]
     }
 

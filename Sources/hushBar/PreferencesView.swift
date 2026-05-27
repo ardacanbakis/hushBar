@@ -39,7 +39,7 @@ struct PreferencesView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(PrefsTab.about)
         }
-        .frame(width: showingColorPanel ? 856 : 640, height: 500)
+        .frame(width: showingColorPanel ? 856 : 640, height: 600)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showingColorPanel)
         .onChange(of: selectedTab) { _ in
             withAnimation { activeColorTarget = nil }
@@ -286,7 +286,6 @@ private struct PresetListSidebar: View {
                 Text(preset.name)
                     .font(.callout)
                     .lineLimit(1)
-                    .foregroundColor(isEditing ? .primary : .primary)
                 Spacer()
                 if isActive {
                     Image(systemName: "checkmark")
@@ -306,6 +305,13 @@ private struct PresetListSidebar: View {
             )
         }
         .buttonStyle(.plain)
+        // double-click activates the preset in the menu bar
+        .simultaneousGesture(
+            TapGesture(count: 2).onEnded {
+                editingPresetID = preset.id
+                settings.selectedPresetID = preset.id
+            }
+        )
     }
 }
 

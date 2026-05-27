@@ -465,11 +465,18 @@ private struct AboutView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable().frame(width: 64, height: 64)
+            // AppLogo asset is the logo PNG added to Assets.xcassets/AppLogo.imageset
+            if let logo = NSImage(named: "AppLogo") {
+                Image(nsImage: logo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 180, height: 180)
+            } else {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable().frame(width: 64, height: 64)
+            }
 
             VStack(spacing: 2) {
-                Text("HushBar").font(.title2).fontWeight(.bold)
                 Text("Mute your microphone from the menu bar.")
                     .font(.callout).foregroundColor(.secondary)
                 Text(version).font(.caption).foregroundColor(.secondary)

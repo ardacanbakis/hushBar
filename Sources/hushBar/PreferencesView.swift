@@ -465,12 +465,13 @@ private struct AboutView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            // AppLogo asset is the logo PNG added to Assets.xcassets/AppLogo.imageset
             if let logo = NSImage(named: "AppLogo") {
                 Image(nsImage: logo)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 180, height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
             } else {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable().frame(width: 64, height: 64)

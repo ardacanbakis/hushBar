@@ -143,6 +143,19 @@ private struct GeneralSettingsView: View {
                             .disabled(settings.toggleSound == .none)
                             .opacity(settings.toggleSound == .none ? 0.3 : 1)
                         }
+
+                        HStack {
+                            Text("Label size")
+                            Spacer()
+                            Picker("", selection: $settings.fontSize) {
+                                ForEach(FontSize.allCases) { size in
+                                    Text(size.displayName).tag(size)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 90)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
@@ -197,19 +210,35 @@ private struct StyleSettingsView: View {
             if let target = activeColorTarget, let binding = presetBinding {
                 let colorBinding = Binding<ColorComponents>(
                     get: {
-                        target == .on
-                            ? binding.wrappedValue.onColor
-                            : binding.wrappedValue.offColor
+                        switch target {
+                        case .on:      return binding.wrappedValue.onColor
+                        case .off:     return binding.wrappedValue.offColor
+                        case .onText:  return binding.wrappedValue.onTextColor
+                        case .offText: return binding.wrappedValue.offTextColor
+                        }
                     },
                     set: { newVal in
                         var p = binding.wrappedValue
-                        if target == .on { p.onColor = newVal } else { p.offColor = newVal }
+                        switch target {
+                        case .on:      p.onColor      = newVal
+                        case .off:     p.offColor     = newVal
+                        case .onText:  p.onTextColor  = newVal
+                        case .offText: p.offTextColor = newVal
+                        }
                         binding.wrappedValue = p
                     }
                 )
+                let panelTitle: String = {
+                    switch target {
+                    case .on:      return "Badge on"
+                    case .off:     return "Badge off"
+                    case .onText:  return "Text on"
+                    case .offText: return "Text off"
+                    }
+                }()
                 Divider()
                 ColorEditorPanel(
-                    title: target == .on ? "On color" : "Off color",
+                    title: panelTitle,
                     color: colorBinding,
                     onDone: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
@@ -376,8 +405,10 @@ private struct PresetEditorView: View {
 
                 GroupBox("Colors") {
                     VStack(spacing: 8) {
-                        colorSwatchRow("On color",  components: preset.onColor,  target: .on)
-                        colorSwatchRow("Off color", components: preset.offColor, target: .off)
+                        colorSwatchRow("Badge on",   components: preset.onColor,      target: .on)
+                        colorSwatchRow("Text on",    components: preset.onTextColor,  target: .onText)
+                        colorSwatchRow("Badge off",  components: preset.offColor,     target: .off)
+                        colorSwatchRow("Text off",   components: preset.offTextColor, target: .offText)
                     }
                     .padding(6)
                 }

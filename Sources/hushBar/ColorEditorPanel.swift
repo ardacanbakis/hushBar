@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum ColorTarget: Equatable { case on, off }
+enum ColorTarget: Equatable { case on, off, onText, offText }
 
 struct ColorEditorPanel: View {
     let title: String

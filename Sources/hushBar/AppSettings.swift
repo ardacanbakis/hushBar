@@ -7,24 +7,27 @@ enum BarShape: String, Codable, CaseIterable, Identifiable {
     case roundedRect
     case rectangle
     case toggleSwitch
+    case mic
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .pill: return "Pill"
-        case .roundedRect: return "Rounded Rectangle"
-        case .rectangle: return "Rectangle"
+        case .pill:         return "Pill"
+        case .roundedRect:  return "Rounded Rectangle"
+        case .rectangle:    return "Rectangle"
         case .toggleSwitch: return "Toggle Switch"
+        case .mic:          return "Microphone"
         }
     }
 
     var symbolName: String {
         switch self {
-        case .pill: return "capsule.fill"
-        case .roundedRect: return "rectangle.fill"
-        case .rectangle: return "rectangle"
+        case .pill:         return "capsule.fill"
+        case .roundedRect:  return "rectangle.fill"
+        case .rectangle:    return "rectangle"
         case .toggleSwitch: return "switch.2"
+        case .mic:          return "mic.fill"
         }
     }
 }
@@ -40,16 +43,16 @@ enum TextCase: String, Codable, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .asTyped: return "As Typed"
-        case .upper: return "UPPER"
-        case .lower: return "lower"
+        case .upper:   return "UPPER"
+        case .lower:   return "lower"
         }
     }
 
     func apply(_ string: String) -> String {
         switch self {
         case .asTyped: return string
-        case .upper: return string.uppercased()
-        case .lower: return string.lowercased()
+        case .upper:   return string.uppercased()
+        case .lower:   return string.lowercased()
         }
     }
 }
@@ -80,14 +83,59 @@ struct ColorComponents: Codable, Equatable {
 
 /// A named, fully-editable look for the menu bar control.
 struct BarPreset: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
+    var id: UUID
     var name: String
     var shape: BarShape
     var onText: String
     var offText: String
     var onColor: ColorComponents
     var offColor: ColorComponents
-    var textCase: TextCase = .asTyped
+    var textCase: TextCase
+    var onTextColor: ColorComponents
+    var offTextColor: ColorComponents
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        shape: BarShape,
+        onText: String,
+        offText: String,
+        onColor: ColorComponents,
+        offColor: ColorComponents,
+        textCase: TextCase = .asTyped,
+        onTextColor: ColorComponents = ColorComponents(r: 1, g: 1, b: 1),
+        offTextColor: ColorComponents = ColorComponents(r: 1, g: 1, b: 1)
+    ) {
+        self.id           = id
+        self.name         = name
+        self.shape        = shape
+        self.onText       = onText
+        self.offText      = offText
+        self.onColor      = onColor
+        self.offColor     = offColor
+        self.textCase     = textCase
+        self.onTextColor  = onTextColor
+        self.offTextColor = offTextColor
+    }
+
+    // Forward-compatible decoder: missing keys (added in later versions) fall back to defaults.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, shape, onText, offText, onColor, offColor, textCase, onTextColor, offTextColor
+    }
+
+    init(from decoder: Decoder) throws {
+        let c    = try decoder.container(keyedBy: CodingKeys.self)
+        id           = try c.decodeIfPresent(UUID.self,            forKey: .id)           ?? UUID()
+        name         = try c.decode(String.self,                   forKey: .name)
+        shape        = try c.decode(BarShape.self,                 forKey: .shape)
+        onText       = try c.decode(String.self,                   forKey: .onText)
+        offText      = try c.decode(String.self,                   forKey: .offText)
+        onColor      = try c.decode(ColorComponents.self,          forKey: .onColor)
+        offColor     = try c.decode(ColorComponents.self,          forKey: .offColor)
+        textCase     = try c.decodeIfPresent(TextCase.self,        forKey: .textCase)     ?? .asTyped
+        onTextColor  = try c.decodeIfPresent(ColorComponents.self, forKey: .onTextColor)  ?? ColorComponents(r: 1, g: 1, b: 1)
+        offTextColor = try c.decodeIfPresent(ColorComponents.self, forKey: .offTextColor) ?? ColorComponents(r: 1, g: 1, b: 1)
+    }
 
     /// The label for a given state, with the case rule applied.
     func text(on: Bool) -> String {
@@ -133,6 +181,29 @@ enum ToggleSound: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+/// S / M / L font size for the menu bar badge labels.
+enum FontSize: String, CaseIterable, Identifiable, Codable {
+    case small, medium, large
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .small:  return "S"
+        case .medium: return "M"
+        case .large:  return "L"
+        }
+    }
+
+    var points: CGFloat {
+        switch self {
+        case .small:  return 9
+        case .medium: return 11
+        case .large:  return 13
+        }
+    }
+}
+
 /// User-tunable settings, persisted in `UserDefaults`.
 /// Presets are stored as JSON; scalar prefs as their raw types.
 final class AppSettings: ObservableObject {
@@ -148,6 +219,9 @@ final class AppSettings: ObservableObject {
     @Published var toggleSound: ToggleSound {
         didSet { UserDefaults.standard.set(toggleSound.rawValue, forKey: Keys.toggleSound) }
     }
+    @Published var fontSize: FontSize {
+        didSet { UserDefaults.standard.set(fontSize.rawValue, forKey: Keys.fontSize) }
+    }
 
     /// The preset currently shown in the menu bar. Falls back to the first.
     var selectedPreset: BarPreset {
@@ -155,9 +229,10 @@ final class AppSettings: ObservableObject {
     }
 
     private enum Keys {
-        static let presets = "presets.v1"
+        static let presets          = "presets.v1"
         static let selectedPresetID = "selectedPresetID"
-        static let toggleSound = "toggleSound"
+        static let toggleSound      = "toggleSound"
+        static let fontSize         = "fontSize"
     }
 
     static let defaultRed  = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
@@ -189,6 +264,54 @@ final class AppSettings: ObservableObject {
                       onColor: ColorComponents(r: 0.52, g: 0.18, b: 0.82),
                       offColor: ColorComponents(r: 0.32, g: 0.33, b: 0.36),
                       textCase: .upper),
+
+            // --- Podcast / Creator ---
+            BarPreset(name: "REC / Hush", shape: .pill,
+                      onText: "REC", offText: "Hush",
+                      onColor: ColorComponents(r: 0.82, g: 0.08, b: 0.10),
+                      offColor: ColorComponents(r: 0.42, g: 0.44, b: 0.47),
+                      textCase: .upper),
+            BarPreset(name: "BROADCAST / Hushed", shape: .roundedRect,
+                      onText: "BROADCAST", offText: "Hushed",
+                      onColor: ColorComponents(r: 0.75, g: 0.18, b: 0.08),
+                      offColor: ColorComponents(r: 0.40, g: 0.42, b: 0.48),
+                      textCase: .upper),
+
+            // --- Office / Meetings ---
+            BarPreset(name: "In Meeting / Hush", shape: .pill,
+                      onText: "In Meeting", offText: "Hush",
+                      onColor: ColorComponents(r: 0.12, g: 0.35, b: 0.82),
+                      offColor: ColorComponents(r: 0.38, g: 0.42, b: 0.50),
+                      textCase: .asTyped),
+            BarPreset(name: "ON CALL / Hushed", shape: .roundedRect,
+                      onText: "ON CALL", offText: "Hushed",
+                      onColor: ColorComponents(r: 0.08, g: 0.62, b: 0.68),
+                      offColor: ColorComponents(r: 0.35, g: 0.38, b: 0.44),
+                      textCase: .upper),
+
+            // --- Streamer / Gamer ---
+            BarPreset(name: "STREAMING / Shhh", shape: .toggleSwitch,
+                      onText: "STREAMING", offText: "Shhh",
+                      onColor: ColorComponents(r: 0.56, g: 0.25, b: 0.92),
+                      offColor: ColorComponents(r: 0.28, g: 0.30, b: 0.36),
+                      textCase: .asTyped),
+            BarPreset(name: "GAMING / Hushed", shape: .roundedRect,
+                      onText: "GAMING", offText: "Hushed",
+                      onColor: ColorComponents(r: 0.12, g: 0.85, b: 0.42),
+                      offColor: ColorComponents(r: 0.22, g: 0.24, b: 0.28),
+                      textCase: .upper),
+
+            // --- Minimal / Monochrome ---
+            BarPreset(name: "ON / Hush", shape: .rectangle,
+                      onText: "ON", offText: "Hush",
+                      onColor: ColorComponents(r: 0.08, g: 0.08, b: 0.10),
+                      offColor: ColorComponents(r: 0.45, g: 0.47, b: 0.50),
+                      textCase: .upper),
+            BarPreset(name: "Mic Icon", shape: .mic,
+                      onText: "", offText: "",
+                      onColor: ColorComponents(r: 0.28, g: 0.85, b: 0.48),
+                      offColor: ColorComponents(r: 0.50, g: 0.52, b: 0.56),
+                      textCase: .asTyped),
         ]
     }
 
@@ -217,8 +340,14 @@ final class AppSettings: ObservableObject {
            let sound = ToggleSound(rawValue: raw) {
             toggleSound = sound
         } else {
-            // migrate from old bool key; default new installs to .pop
             toggleSound = (d.object(forKey: "playSoundOnToggle") as? Bool == false) ? .none : .pop
+        }
+
+        if let raw = d.string(forKey: Keys.fontSize),
+           let size = FontSize(rawValue: raw) {
+            fontSize = size
+        } else {
+            fontSize = .medium
         }
     }
 

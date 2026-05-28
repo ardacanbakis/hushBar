@@ -49,10 +49,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.title = "HushBar Preferences"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
+            window.backgroundColor = NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? NSColor(white: 0.18, alpha: 1)
+                    : NSColor(white: 0.96, alpha: 1)
+            }
             window.center()
             preferencesWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
         preferencesWindow?.makeKeyAndOrderFront(nil)
+        preferencesWindow?.orderFrontRegardless()
     }
 }

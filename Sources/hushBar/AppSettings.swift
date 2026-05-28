@@ -176,8 +176,10 @@ enum ToggleSound: String, CaseIterable, Identifiable, Codable {
     }
 
     func play() {
-        guard let name = systemName else { return }
-        NSSound(named: NSSound.Name(name))?.play()
+        guard let name = systemName,
+              let sound = NSSound(named: NSSound.Name(name)),
+              !sound.isPlaying else { return }
+        sound.play()
     }
 }
 

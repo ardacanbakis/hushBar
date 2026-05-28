@@ -68,16 +68,20 @@ final class MicMuteController: ObservableObject {
         logDeviceInfoOnce(device)
         let elements = Self.candidateElements(device)
 
-        // Set the hardware mute flag on every input element that has it.
+        // Set the hardware mute flag; track which elements confirmed the write.
+        var hwMuted = Set<AudioObjectPropertyElement>()
         for element in elements where Self.hasProperty(device, kAudioDevicePropertyMute, element: element) {
             let status = Self.setMute(device, element: element, muted: muted)
             let readback = Self.muteValue(device, element: element)
             NSLog("hushBar: mute=%d el=%u status=%d readback=%d", muted ? 1 : 0, element, Int(status), readback ? 1 : 0)
+            if readback == muted { hwMuted.insert(element) }
         }
 
-        // Also drive input volume to zero. On devices where the mute flag is
-        // cosmetic (e.g. some built-in mics) this is what actually cuts audio.
-        for element in elements where Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element) {
+        // Volume fallback only for elements where hardware mute didn't confirm.
+        // Writing vol=0 to elements that already have a working hardware mute
+        // causes some built-in mic drivers to clear the mute flag (oscillation bug).
+        for element in elements
+        where !hwMuted.contains(element) && Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element) {
             if muted {
                 if savedVolumes[element] == nil {
                     savedVolumes[element] = Self.volume(device, element: element) ?? 1
@@ -161,11 +165,15 @@ final class MicMuteController: ObservableObject {
     }
 
     private func handleDefaultDeviceChanged() {
-        let intended = isMuted
+        let newID = Self.defaultInputDevice()
         removeDeviceMuteListener()
-        deviceID = Self.defaultInputDevice()
+        let deviceActuallyChanged = newID != deviceID
+        deviceID = newID
         installDeviceMuteListener()
-        setMuted(intended)
+        // Spurious notifications fire when TCC grants mic permission without
+        // switching devices — skip the re-apply to avoid an oscillation loop.
+        guard deviceActuallyChanged else { return }
+        if isMuted { setMuted(true) }
     }
 
     // MARK: - External mute change handling

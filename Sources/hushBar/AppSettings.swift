@@ -183,25 +183,27 @@ enum ToggleSound: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-/// S / M / L font size for the menu bar badge labels.
+/// S / M / L / XL font size for the menu bar badge labels.
 enum FontSize: String, CaseIterable, Identifiable, Codable {
-    case small, medium, large
+    case small, medium, large, xlarge
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .small:  return "S"
-        case .medium: return "M"
-        case .large:  return "L"
+        case .small:   return "S"
+        case .medium:  return "M"
+        case .large:   return "L"
+        case .xlarge:  return "XL"
         }
     }
 
     var points: CGFloat {
         switch self {
-        case .small:  return 9
-        case .medium: return 11
-        case .large:  return 13
+        case .small:   return 9
+        case .medium:  return 11
+        case .large:   return 13
+        case .xlarge:  return 15
         }
     }
 }
@@ -224,6 +226,9 @@ final class AppSettings: ObservableObject {
     @Published var fontSize: FontSize {
         didSet { UserDefaults.standard.set(fontSize.rawValue, forKey: Keys.fontSize) }
     }
+    @Published var boldLabels: Bool {
+        didSet { UserDefaults.standard.set(boldLabels, forKey: Keys.boldLabels) }
+    }
 
     /// The preset currently shown in the menu bar. Falls back to the first.
     var selectedPreset: BarPreset {
@@ -235,6 +240,7 @@ final class AppSettings: ObservableObject {
         static let selectedPresetID = "selectedPresetID"
         static let toggleSound      = "toggleSound"
         static let fontSize         = "fontSize"
+        static let boldLabels       = "boldLabels"
     }
 
     static let defaultRed  = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
@@ -350,6 +356,12 @@ final class AppSettings: ObservableObject {
             fontSize = size
         } else {
             fontSize = .medium
+        }
+
+        if d.object(forKey: Keys.boldLabels) != nil {
+            boldLabels = d.bool(forKey: Keys.boldLabels)
+        } else {
+            boldLabels = true
         }
     }
 

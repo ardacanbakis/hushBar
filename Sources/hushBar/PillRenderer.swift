@@ -11,20 +11,21 @@ enum PillRenderer {
         let offColor     = preset.offColor.nsColor
         let textColor    = on ? preset.onTextColor.nsColor : preset.offTextColor.nsColor
         let fontSize     = AppSettings.shared.fontSize.points
+        let fontWeight   = AppSettings.shared.boldLabels ? NSFont.Weight.bold : .regular
 
         switch preset.shape {
         case .toggleSwitch:
             return toggleImage(on: on, title: title, onColor: onColor, offColor: offColor,
-                               textColor: textColor, fontSize: fontSize)
+                               textColor: textColor, fontSize: fontSize, fontWeight: fontWeight)
         case .pill:
             return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor,
-                              textColor: textColor, radius: height / 2, fontSize: fontSize)
+                              textColor: textColor, radius: height / 2, fontSize: fontSize, fontWeight: fontWeight)
         case .roundedRect:
             return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor,
-                              textColor: textColor, radius: 5, fontSize: fontSize)
+                              textColor: textColor, radius: 5, fontSize: fontSize, fontWeight: fontWeight)
         case .rectangle:
             return badgeImage(on: on, title: title, onColor: onColor, offColor: offColor,
-                              textColor: textColor, radius: 0, fontSize: fontSize)
+                              textColor: textColor, radius: 0, fontSize: fontSize, fontWeight: fontWeight)
         case .mic:
             return micImage(on: on, onColor: onColor, offColor: offColor)
         }
@@ -34,14 +35,14 @@ enum PillRenderer {
 
     private static func toggleImage(
         on: Bool, title: String, onColor: NSColor, offColor: NSColor,
-        textColor: NSColor, fontSize: CGFloat
+        textColor: NSColor, fontSize: CGFloat, fontWeight: NSFont.Weight
     ) -> NSImage {
         let pad: CGFloat = 6
         let gap: CGFloat = 5
         let knobInset: CGFloat = 2
         let knobDiameter = height - knobInset * 2
 
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
+        let font = NSFont.systemFont(ofSize: fontSize, weight: fontWeight)
         let attributed = NSAttributedString(string: title, attributes: [
             .font: font, .foregroundColor: textColor,
         ])
@@ -84,10 +85,10 @@ enum PillRenderer {
 
     private static func badgeImage(
         on: Bool, title: String, onColor: NSColor, offColor: NSColor,
-        textColor: NSColor, radius: CGFloat, fontSize: CGFloat
+        textColor: NSColor, radius: CGFloat, fontSize: CGFloat, fontWeight: NSFont.Weight
     ) -> NSImage {
         let horizontalPadding: CGFloat = 9
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
+        let font = NSFont.systemFont(ofSize: fontSize, weight: fontWeight)
         let attributed = NSAttributedString(string: title, attributes: [
             .font: font, .foregroundColor: textColor, .kern: 0.5,
         ])

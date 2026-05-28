@@ -161,7 +161,19 @@ private struct GeneralSettingsView: View {
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
-                            .frame(width: 90)
+                            .frame(width: 114)
+                        }
+
+                        HStack {
+                            Text("Label style")
+                            Spacer()
+                            Picker("", selection: $settings.boldLabels) {
+                                Text("Regular").tag(false)
+                                Text("Bold").tag(true)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 114)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,12 +194,7 @@ private struct GeneralSettingsView: View {
                 }
 
                 Button(action: onGoToAbout) {
-                    HStack(spacing: 4) {
-                        Text("Check my stuff")
-                        Image(systemName: "arrow.right.circle.fill")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    NeonWaveText(text: "Check my stuff →")
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
@@ -328,20 +335,25 @@ private struct PresetListSidebar: View {
                     Image(systemName: "plus")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 Divider().frame(height: 24)
                 Button {
-                    guard settings.presets.count > 1 else { return }
-                    settings.deletePreset(editingPresetID)
-                    editingPresetID = settings.selectedPresetID
+                    let id = editingPresetID
+                    settings.deletePreset(id)
+                    editingPresetID = settings.presets.contains(where: { $0.id == id })
+                        ? id
+                        : settings.selectedPresetID
                 } label: {
                     Image(systemName: "minus")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .disabled(settings.presets.count <= 1)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -645,6 +657,32 @@ private struct BuyMeACoffeeButton: View {
         }
         .buttonStyle(.plain)
         .help("Support HushBar — opens buymeacoffee.com")
+    }
+}
+
+// MARK: - Neon wave text
+
+private struct NeonWaveText: View {
+    let text: String
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            // Slowly oscillate between electric blue and cyan (hue 0.48 – 0.62)
+            let hue = 0.55 + sin(t * 0.5) * 0.07
+            let c = Color(hue: hue, saturation: 1, brightness: 1)
+            HStack(spacing: 0) {
+                ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
+                    Text(String(ch))
+                        .offset(y: ch == " " ? 0 : sin(t * 3.0 + Double(i) * 0.5) * 2.0)
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(c)
+            .shadow(color: c, radius: 4)
+            .shadow(color: c.opacity(0.7), radius: 8)
+            .shadow(color: c.opacity(0.35), radius: 16)
+        }
     }
 }
 

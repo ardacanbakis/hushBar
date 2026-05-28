@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import KeyboardShortcuts
 
@@ -22,7 +23,8 @@ struct PreferencesView: View {
                 onEditPreset: { id in
                     editingPresetID = id
                     selectedTab = .style
-                }
+                },
+                onGoToAbout: { selectedTab = .about }
             )
             .tabItem { Label("General", systemImage: "gearshape") }
             .tag(PrefsTab.general)
@@ -39,7 +41,7 @@ struct PreferencesView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(PrefsTab.about)
         }
-        .frame(width: showingColorPanel ? 856 : 640, height: 600)
+        .frame(width: showingColorPanel ? 936 : 720, height: 600)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showingColorPanel)
         .onChange(of: selectedTab) { _ in
             withAnimation { activeColorTarget = nil }
@@ -82,6 +84,7 @@ private struct GeneralSettingsView: View {
     @ObservedObject var mic: MicMuteController
     @ObservedObject var settings: AppSettings
     let onEditPreset: (UUID) -> Void
+    let onGoToAbout: () -> Void
 
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
 
@@ -173,9 +176,20 @@ private struct GeneralSettingsView: View {
                     }
                     .padding(6)
                 }
+
+                Button(action: onGoToAbout) {
+                    HStack(spacing: 4) {
+                        Text("Check my stuff")
+                        Image(systemName: "arrow.right.circle.fill")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
             }
             .padding(20)
-            .frame(width: 400)
+            .frame(width: 420)
             .frame(maxWidth: .infinity)
         }
         .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
@@ -189,10 +203,33 @@ private struct StyleSettingsView: View {
     @Binding var editingPresetID: UUID
     @Binding var activeColorTarget: ColorTarget?
 
+    @State private var sidebarWidth: CGFloat = 240
+    @State private var sidebarWidthAtDragStart: CGFloat = 240
+
     var body: some View {
         HStack(spacing: 0) {
             PresetListSidebar(settings: settings, editingPresetID: $editingPresetID)
-            Divider()
+                .frame(width: sidebarWidth)
+
+            // Resizable divider — 8 pt hit area with 1 pt visible line
+            Color.clear
+                .frame(width: 8)
+                .overlay(Color(nsColor: .separatorColor).frame(width: 1))
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    if hovering { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            sidebarWidth = max(140, min(340, sidebarWidthAtDragStart + value.translation.width))
+                        }
+                        .onEnded { value in
+                            sidebarWidth = max(140, min(340, sidebarWidthAtDragStart + value.translation.width))
+                            sidebarWidthAtDragStart = sidebarWidth
+                        }
+                )
+
             if let binding = presetBinding {
                 PresetEditorView(
                     settings: settings,
@@ -302,7 +339,6 @@ private struct PresetListSidebar: View {
             }
             .buttonStyle(.plain)
         }
-        .frame(width: 160)
     }
 
     @ViewBuilder
@@ -480,6 +516,10 @@ private struct SocialLink: Identifiable {
 }
 
 private struct AboutView: View {
+    @Environment(\.openURL) private var openURL
+
+    private let websiteURL = URL(string: "https://ardacanbakis.github.io/hushBar/")!
+
     private let links: [SocialLink] = [
         .init(brand: .website,   label: "Website",   url: URL(string: "https://ardacanbakis.com")!),
         .init(brand: .github,    label: "GitHub",    url: URL(string: "https://github.com/ardacanbakis")!),
@@ -494,40 +534,79 @@ private struct AboutView: View {
         return "Version \(v)"
     }
 
-    var body: some View {
-        VStack(spacing: 14) {
-            if let logo = NSImage(named: "AppLogo") {
-                Image(nsImage: logo)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 180, height: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
-            } else {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable().frame(width: 64, height: 64)
-            }
-
-            VStack(spacing: 2) {
-                Text("Mute your microphone from the menu bar.")
-                    .font(.callout).foregroundColor(.secondary)
-                Text(version).font(.caption).foregroundColor(.secondary)
-            }
-
-            HStack(spacing: 16) {
-                ForEach(links) { link in
-                    Link(destination: link.url) { BrandIcon(brand: link.brand, size: 24) }
-                        .buttonStyle(.plain)
-                        .help(link.label)
-                }
-            }
-            .padding(.top, 4)
-
-            BuyMeACoffeeButton()
-            footer
+    private var adaptiveBg: NSColor {
+        NSColor(name: nil) { a in
+            a.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? NSColor(red: 0.11, green: 0.11, blue: 0.14, alpha: 1)
+                : NSColor(white: 0.97, alpha: 1)
         }
-        .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    var body: some View {
+        ZStack {
+            Color(nsColor: adaptiveBg).ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 16) {
+
+                    // Logo — tappable, opens project website
+                    Button { openURL(websiteURL) } label: {
+                        Group {
+                            if let logo = NSImage(named: "AppLogo") {
+                                Image(nsImage: logo)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 156, height: 156)
+                                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                                    .shadow(color: .black.opacity(0.18), radius: 14, y: 5)
+                            } else {
+                                Image(nsImage: NSApp.applicationIconImage)
+                                    .resizable().frame(width: 64, height: 64)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open hushBar website")
+
+                    VStack(spacing: 3) {
+                        Text("Mute your microphone from the menu bar.")
+                            .font(.callout).foregroundColor(.secondary)
+                        Text(version).font(.caption).foregroundColor(.secondary)
+                    }
+
+                    footer
+
+                    Divider().padding(.horizontal, 48).padding(.vertical, 4)
+
+                    Text("This app is free for everyone, and I plan to keep it that way.\nIf HushBar made your day a little easier and you'd like to support future updates, a small donation would mean a lot.")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    BuyMeACoffeeButton()
+
+                    VStack(spacing: 10) {
+                        Text("Check my links")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .opacity(0.7)
+
+                        HStack(spacing: 14) {
+                            ForEach(links) { link in
+                                Link(destination: link.url) { BrandIcon(brand: link.brand, size: 24) }
+                                    .buttonStyle(.plain)
+                                    .help(link.label)
+                            }
+                        }
+                    }
+                    .padding(.bottom, 4)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+            }
+        }
     }
 
     private var footer: some View {

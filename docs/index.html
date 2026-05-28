@@ -19,6 +19,8 @@
       --surface2: #1b1b1e;
       --red:      #e8312a;
       --red-glow: rgba(232,49,42,0.18);
+      --green:    #22c55e;
+      --green-glow: rgba(34,197,94,0.15);
       --text:     #f0f0f2;
       --text-2:   #8e8e98;
       --text-3:   #52525c;
@@ -174,6 +176,73 @@
     .sb-off { border: 2px solid #4a4a4a; color: #5a5a5a; }
     .click-hint { color: var(--text-3); font-size: 22px; opacity: .5; line-height: 1; }
 
+    /* ── MIC DEMO ── */
+    .mic-demo {
+      padding: 80px var(--gutter);
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      background: radial-gradient(ellipse 60% 90% at 50% 50%, rgba(34,197,94,0.11) 0%, transparent 100%);
+      transition: background 0.75s ease;
+      cursor: pointer;
+    }
+    .mic-demo.hushed {
+      background: radial-gradient(ellipse 60% 90% at 50% 50%, rgba(82,82,92,0.13) 0%, transparent 100%);
+    }
+
+    .mic-stage {
+      display: flex; flex-direction: column; align-items: center; gap: 28px;
+      user-select: none;
+    }
+
+    .mic-svg {
+      width: 80px; height: 120px;
+      overflow: visible;
+      filter: drop-shadow(0 10px 36px rgba(34,197,94,0.42));
+      transition: filter 0.6s ease;
+    }
+    .mic-demo.hushed .mic-svg {
+      filter: drop-shadow(0 10px 28px rgba(82,82,92,0.3));
+    }
+
+    #micBody {
+      fill: var(--green);
+      transition: fill 0.5s ease;
+    }
+    .mic-demo.hushed #micBody { fill: #52525c; }
+
+    #micBracket, #micStem, #micBase {
+      stroke: var(--green);
+      fill: none;
+      transition: stroke 0.5s ease;
+    }
+    .mic-demo.hushed #micBracket,
+    .mic-demo.hushed #micStem,
+    .mic-demo.hushed #micBase { stroke: #52525c; }
+
+    #micSlash {
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+    .mic-demo.hushed #micSlash { opacity: 1; }
+
+    .mic-badge {
+      font-size: 20px; font-weight: 800; letter-spacing: 1.5px;
+      padding: 9px 24px; border-radius: 100px;
+      color: var(--green);
+      background: rgba(34,197,94,0.1);
+      border: 1.5px solid rgba(34,197,94,0.28);
+      transition: color 0.5s ease, background 0.5s ease, border-color 0.5s ease;
+    }
+    .mic-demo.hushed .mic-badge {
+      color: var(--text-2);
+      background: rgba(142,142,152,0.08);
+      border-color: rgba(142,142,152,0.2);
+    }
+
+    .mic-hint {
+      font-size: 11px; color: var(--text-3);
+      letter-spacing: 0.07em; text-transform: uppercase;
+    }
+
     /* ── SECTIONS ── */
     .section { padding: 88px var(--gutter); }
     .divider  { height: 1px; background: var(--border); margin: 0 var(--gutter); }
@@ -260,6 +329,25 @@
     .copyright .heart { color: var(--red); }
     .copyright a { color: inherit; text-decoration: none; transition: color .2s; }
     .copyright a:hover { color: var(--text-2); }
+
+    /* ── SCROLL TO TOP ── */
+    .scroll-top {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.3s, transform 0.3s, background 0.2s, color 0.2s;
+      z-index: 200;
+    }
+    .scroll-top.visible { opacity: 1; pointer-events: auto; transform: none; }
+    .scroll-top:hover { background: var(--surface); color: var(--text); }
 
     /* ── ANIMATIONS ── */
     .rise { opacity: 0; transform: translateY(22px); transition: opacity .55s ease, transform .55s ease; }
@@ -350,6 +438,24 @@
 
 <div class="divider"></div>
 
+<!-- ── MIC DEMO ── -->
+<section class="mic-demo" id="demo" aria-label="Interactive microphone state demo">
+  <div class="mic-stage">
+    <!-- Mic SVG: capsule body + U-bracket collar + stem + base + mute slash -->
+    <svg class="mic-svg" id="micSvg" viewBox="0 0 52 72" xmlns="http://www.w3.org/2000/svg">
+      <rect id="micBody" x="16" y="2" width="20" height="36" rx="10" ry="10"/>
+      <path id="micBracket" d="M 10 38 A 16 16 0 0 1 42 38" stroke-width="3.5" stroke-linecap="round"/>
+      <line id="micStem"    x1="26" y1="54" x2="26" y2="64" stroke-width="3.5" stroke-linecap="round"/>
+      <line id="micBase"    x1="14" y1="64" x2="38" y2="64" stroke-width="3.5" stroke-linecap="round"/>
+      <line id="micSlash"   x1="6"  y1="68" x2="46" y2="4"  stroke="#e8312a" stroke-width="4.5" stroke-linecap="round"/>
+    </svg>
+    <span class="mic-badge" id="micBadge">LIVE</span>
+    <p class="mic-hint">click to toggle &nbsp;·&nbsp; auto-plays</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <!-- ── HOW IT WORKS ── -->
 <section class="section" id="how">
   <p class="sec-tag">How it works</p>
@@ -390,7 +496,7 @@
     <div class="feat rise" style="transition-delay:.05s">
       <div class="feat-icon">🎨</div>
       <div class="feat-title">Custom bar styles</div>
-      <p class="feat-desc">Pick from pill, rounded rect, rectangle, or toggle switch. Set colors, labels, and capitalization to match your vibe.</p>
+      <p class="feat-desc">Pick from pill, rounded rect, rectangle, toggle switch, or mic icon. Set colors, text, and capitalization per preset.</p>
     </div>
     <div class="feat rise" style="transition-delay:.1s">
       <div class="feat-icon">⌨️</div>
@@ -449,12 +555,40 @@
   </p>
 </footer>
 
+<!-- ── SCROLL TO TOP ── -->
+<button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 19V5M5 12l7-7 7 7"/>
+  </svg>
+</button>
+
 <script>
+  // Rise animations
   const obs = new IntersectionObserver(
     entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); }),
     { threshold: 0.12 }
   );
   document.querySelectorAll('.rise').forEach(el => obs.observe(el));
+
+  // Scroll to top button
+  const scrollTopBtn = document.getElementById('scrollTop');
+  window.addEventListener('scroll', () => {
+    scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
+  }, { passive: true });
+
+  // Mic demo — auto-toggles + click to toggle
+  const micSection = document.getElementById('demo');
+  const micBadge   = document.getElementById('micBadge');
+  let micLive = true;
+
+  function setMicState(live) {
+    micLive = live;
+    micSection.classList.toggle('hushed', !live);
+    micBadge.textContent = live ? 'LIVE' : 'Hushed';
+  }
+
+  micSection.addEventListener('click', () => setMicState(!micLive));
+  setInterval(() => setMicState(!micLive), 3500);
 </script>
 
 </body>

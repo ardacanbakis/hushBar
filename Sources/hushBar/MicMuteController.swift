@@ -31,13 +31,20 @@ final class MicMuteController: ObservableObject {
     /// within the suppression window.
     private var suppressListenerUntil = Date.distantPast
 
+    /// The last mute state we intentionally requested (on listenerQueue).
+    /// When the hardware state diverges from this — outside the suppression window —
+    /// the listener re-asserts silently rather than accepting the external flip.
+    private var muteIntent: Bool = false
+
     // MARK: - Lifecycle
 
     init() {
         deviceID = Self.defaultInputDevice()
         installDefaultDeviceListener()
         installDeviceMuteListener()
-        isMuted = Self.readMuted(deviceID)
+        let initial = Self.readMuted(deviceID)
+        isMuted = initial
+        listenerQueue.async { [weak self] in self?.muteIntent = initial }
     }
 
     deinit {
@@ -55,6 +62,9 @@ final class MicMuteController: ObservableObject {
     func setMuted(_ muted: Bool) {
         guard deviceID != AudioObjectID(kAudioObjectUnknown) else { return }
         hushLog("setMuted(\(muted))")
+        // Update intent before apply() queues the suppression block so that
+        // both arrive on listenerQueue before the post-write listener callback.
+        listenerQueue.async { [weak self] in self?.muteIntent = muted }
         apply(muted: muted, to: deviceID)
         // Reflect the real global state rather than assuming the write stuck.
         updateMuted(Self.readMuted(deviceID))
@@ -209,8 +219,19 @@ final class MicMuteController: ObservableObject {
                 hushLog("listener suppressed readback=\(readback ? 1 : 0)")
                 return
             }
-            hushLog("listener fired readback=\(readback ? 1 : 0)")
-            self.updateMuted(readback)
+            hushLog("listener fired readback=\(readback ? 1 : 0) intent=\(self.muteIntent ? 1 : 0)")
+            // If the external change contradicts our intent, re-assert silently.
+            // This breaks the oscillation loop caused by a competing agent
+            // (e.g. macOS audio policy) toggling the hardware on a ~3.8s cycle.
+            if readback != self.muteIntent {
+                hushLog("re-asserting intent=\(self.muteIntent ? 1 : 0)")
+                self.suppressListenerUntil = Date().addingTimeInterval(0.4)
+                Self.setMute(self.deviceID, element: kAudioObjectPropertyElementMain,
+                             muted: self.muteIntent)
+                self.updateMuted(Self.readMuted(self.deviceID))
+            } else {
+                self.updateMuted(readback)
+            }
         }
         deviceMuteListener = block
         AudioObjectAddPropertyListenerBlock(deviceID, &address, listenerQueue, block)

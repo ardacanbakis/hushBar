@@ -26,6 +26,11 @@ final class MicMuteController: ObservableObject {
     private var defaultDeviceListener: AudioObjectPropertyListenerBlock?
     private var deviceMuteListener: AudioObjectPropertyListenerBlock?
 
+    /// Deadline (on listenerQueue) before which listener callbacks are suppressed.
+    /// Set before each intentional write so competing apps can't flip the state back
+    /// within the suppression window.
+    private var suppressListenerUntil = Date.distantPast
+
     // MARK: - Lifecycle
 
     init() {
@@ -70,6 +75,13 @@ final class MicMuteController: ObservableObject {
     }
 
     private func apply(muted: Bool, to device: AudioObjectID) {
+        // Pre-queue suppression on listenerQueue before the writes so the listener
+        // callback triggered by our own write (and any competing write within 400ms)
+        // is ignored. The async block is guaranteed to run before the post-write
+        // listener block because both are serialised on the same queue.
+        listenerQueue.async { [weak self] in
+            self?.suppressListenerUntil = Date().addingTimeInterval(0.4)
+        }
         logDeviceInfoOnce(device)
         let elements = Self.candidateElements(device)
 
@@ -192,7 +204,13 @@ final class MicMuteController: ObservableObject {
             mElement: kAudioObjectPropertyElementMain)
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             guard let self else { return }
-            self.updateMuted(Self.readMuted(self.deviceID))
+            let readback = Self.readMuted(self.deviceID)
+            guard Date() > self.suppressListenerUntil else {
+                hushLog("listener suppressed readback=\(readback ? 1 : 0)")
+                return
+            }
+            hushLog("listener fired readback=\(readback ? 1 : 0)")
+            self.updateMuted(readback)
         }
         deviceMuteListener = block
         AudioObjectAddPropertyListenerBlock(deviceID, &address, listenerQueue, block)

@@ -34,10 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// them. We never open a capture session, so no recording actually occurs.
     private func requestMicrophoneAccess() {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        NSLog("hushBar: microphone authorization status=%ld", status.rawValue)
+        hushLog("microphone authorization status=\(status.rawValue)")
         if status == .notDetermined {
             AVCaptureDevice.requestAccess(for: .audio) { granted in
-                NSLog("hushBar: microphone access granted=%d", granted ? 1 : 0)
+                hushLog("microphone access granted=\(granted ? 1 : 0)")
             }
         }
     }

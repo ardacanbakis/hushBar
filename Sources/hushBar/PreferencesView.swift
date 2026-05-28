@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import KeyboardShortcuts
 
-enum PrefsTab: Hashable { case general, style, about }
+enum PrefsTab: Hashable { case general, style, about, debug }
 
 struct PreferencesView: View {
     @ObservedObject var mic: MicMuteController
@@ -40,6 +40,10 @@ struct PreferencesView: View {
             AboutView()
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(PrefsTab.about)
+
+            DebugLogView()
+                .tabItem { Label("Debug", systemImage: "ant") }
+                .tag(PrefsTab.debug)
         }
         .frame(width: showingColorPanel ? 936 : 720, height: 600)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showingColorPanel)
@@ -641,6 +645,80 @@ private struct BuyMeACoffeeButton: View {
         }
         .buttonStyle(.plain)
         .help("Support HushBar — opens buymeacoffee.com")
+    }
+}
+
+// MARK: - Debug log (DEV ONLY — remove tab before release)
+
+private struct DebugLogView: View {
+    @ObservedObject private var logger = DebugLogger.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Warning banner
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                Text("Dev only — remove before release")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Clear") { logger.clear() }
+                    .controlSize(.small)
+                Button("Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(logger.allText(), forType: .string)
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Color.orange.opacity(0.08))
+
+            Divider()
+
+            if logger.entries.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary.opacity(0.4))
+                    Text("No log entries yet")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 1) {
+                            ForEach(logger.entries) { entry in
+                                HStack(alignment: .top, spacing: 6) {
+                                    Text(entry.timeLabel)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 84, alignment: .leading)
+                                    Text(entry.message)
+                                        .font(.system(.caption, design: .monospaced))
+                                        .textSelection(.enabled)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 2)
+                                .id(entry.id)
+                            }
+                        }
+                        .padding(.vertical, 6)
+                    }
+                    .onChange(of: logger.entries.count) { _ in
+                        if let last = logger.entries.last {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

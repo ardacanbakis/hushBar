@@ -43,11 +43,13 @@ final class MicMuteController: ObservableObject {
     // MARK: - Public API
 
     func toggle() {
+        hushLog("toggle isMuted=\(isMuted)")
         setMuted(!isMuted)
     }
 
     func setMuted(_ muted: Bool) {
         guard deviceID != AudioObjectID(kAudioObjectUnknown) else { return }
+        hushLog("setMuted(\(muted))")
         apply(muted: muted, to: deviceID)
         // Reflect the real global state rather than assuming the write stuck.
         updateMuted(Self.readMuted(deviceID))
@@ -60,7 +62,10 @@ final class MicMuteController: ObservableObject {
             guard let self else { return }
             let changed = value != self.isMuted
             self.isMuted = value
-            if changed { self.onStateChange?(value) }
+            if changed {
+                hushLog("state changed → isMuted=\(value)")
+                self.onStateChange?(value)
+            }
         }
     }
 
@@ -73,7 +78,7 @@ final class MicMuteController: ObservableObject {
         for element in elements where Self.hasProperty(device, kAudioDevicePropertyMute, element: element) {
             let status = Self.setMute(device, element: element, muted: muted)
             let readback = Self.muteValue(device, element: element)
-            NSLog("hushBar: mute=%d el=%u status=%d readback=%d", muted ? 1 : 0, element, Int(status), readback ? 1 : 0)
+            hushLog("mute=\(muted ? 1 : 0) el=\(element) status=\(Int(status)) readback=\(readback ? 1 : 0)")
             if readback == muted { hwMuted.insert(element) }
         }
 
@@ -88,10 +93,10 @@ final class MicMuteController: ObservableObject {
                 }
                 let status = Self.setVolume(device, element: element, value: 0)
                 let readback = Self.volume(device, element: element) ?? -1
-                NSLog("hushBar: vol->0 el=%u status=%d readback=%.3f", element, Int(status), Double(readback))
+                hushLog("vol->0 el=\(element) status=\(Int(status)) readback=\(String(format: "%.3f", Double(readback)))")
             } else {
                 let status = Self.setVolume(device, element: element, value: savedVolumes[element] ?? 1)
-                NSLog("hushBar: vol restore el=%u status=%d", element, Int(status))
+                hushLog("vol restore el=\(element) status=\(Int(status))")
             }
         }
         if !muted { savedVolumes.removeAll() }
@@ -110,7 +115,7 @@ final class MicMuteController: ObservableObject {
             var value: UInt32 = muted ? 1 : 0
             let status = AudioObjectSetPropertyData(
                 device, &muteAddr, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
-            NSLog("hushBar: global mute=%d status=%d", muted ? 1 : 0, Int(status))
+            hushLog("global mute=\(muted ? 1 : 0) status=\(Int(status))")
         }
 
         var volAddr = AudioObjectPropertyAddress(
@@ -121,7 +126,7 @@ final class MicMuteController: ObservableObject {
             var v: Float32 = muted ? 0 : 1
             let status = AudioObjectSetPropertyData(
                 device, &volAddr, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
-            NSLog("hushBar: global vol=%.1f status=%d", Double(v), Int(status))
+            hushLog("global vol=\(String(format: "%.1f", Double(v))) status=\(Int(status))")
         }
     }
 
@@ -129,12 +134,11 @@ final class MicMuteController: ObservableObject {
     private func logDeviceInfoOnce(_ device: AudioObjectID) {
         guard !didLogInfo else { return }
         didLogInfo = true
-        NSLog("hushBar: default input id=%u name=%@ channels=%u",
-              device, Self.deviceName(device), Self.inputChannelCount(device))
+        hushLog("default input id=\(device) name=\(Self.deviceName(device)) channels=\(Self.inputChannelCount(device))")
         for element in Self.candidateElements(device) {
             let hasMute = Self.hasProperty(device, kAudioDevicePropertyMute, element: element)
             let hasVol = Self.hasProperty(device, kAudioDevicePropertyVolumeScalar, element: element)
-            NSLog("hushBar: el=%u hasMute=%d hasVol=%d", element, hasMute ? 1 : 0, hasVol ? 1 : 0)
+            hushLog("el=\(element) hasMute=\(hasMute ? 1 : 0) hasVol=\(hasVol ? 1 : 0)")
         }
     }
 
@@ -170,6 +174,7 @@ final class MicMuteController: ObservableObject {
         let deviceActuallyChanged = newID != deviceID
         deviceID = newID
         installDeviceMuteListener()
+        hushLog("defaultDeviceChanged newID=\(newID) changed=\(deviceActuallyChanged ? 1 : 0)")
         // Spurious notifications fire when TCC grants mic permission without
         // switching devices — skip the re-apply to avoid an oscillation loop.
         guard deviceActuallyChanged else { return }

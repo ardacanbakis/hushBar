@@ -60,45 +60,47 @@ xcrun altool --list-providers -u "you@example.com" -p "app-specific-password"
 
 ## 1. Build the .app
 
-Generate the project, then archive a Release build.
+The repo ships with a build script that handles everything. From the repo root:
 
+```sh
+bash scripts/build-release.sh
+```
+
+This runs `xcodegen generate`, builds a Release `.app`, and writes to `dist/`:
+- `HushBar-1.0.zip` — drag-to-Applications zip (always produced)
+- `HushBar-1.0.dmg` — DMG with drag layout (produced if `create-dmg` is installed)
+
+For a **signed + notarized** build (required for public distribution), set `SIGN=1` and export your notarytool profile name:
+
+```sh
+SIGN=1 AC_PROFILE="AC_PROFILE" bash scripts/build-release.sh
+```
+
+The script also prints the DMG's SHA-256 at the end — you'll paste that into the Homebrew cask.
+
+**Manual Xcode route (alternative):**
 ```sh
 xcodegen generate
 open hushBar.xcodeproj
 ```
-
-In Xcode:
-
-1. Select the **hushBar** scheme, destination **My Mac**.
-2. **Product → Archive**.
-3. When the Organizer opens, select the archive → **Distribute App**.
-   - For Options A/B choose **Developer ID** → **Export** (not "Upload").
-   - This produces a `HushBar.app` you can find in the exported folder.
-
-If you prefer the command line for the export, you can also build directly:
-
-```sh
-xcodebuild -project hushBar.xcodeproj -scheme hushBar -configuration Release \
-  -derivedDataPath build clean build
-```
-
-The app lands at `build/Build/Products/Release/HushBar.app`.
+Select the **hushBar** scheme → **My Mac** → **Product → Archive → Distribute App → Developer ID → Export**. The exported folder contains `HushBar.app`.
 
 ---
 
 ## 2. Quick share (unsigned, for yourself or a friend)
 
-If you just want to hand the app to one person and don't care about Gatekeeper
-friction:
+The build script always produces `dist/HushBar-1.0.zip` — just send that file.
+No `SIGN=1` needed; a free Apple ID with "Sign to Run Locally" is sufficient.
 
-1. Build as above (a free Apple ID and "Sign to Run Locally" is enough).
-2. Zip it: right-click `HushBar.app` → **Compress**.
-3. Send the zip.
+The recipient must **right-click → Open** the first time to bypass Gatekeeper's
+"unidentified developer" warning. Or they can run:
 
-The recipient must **right-click → Open** the first time and confirm the
-"unidentified developer" prompt (or run
-`xattr -dr com.apple.quarantine /Applications/HushBar.app`). This is fine for a
-friend but not acceptable for public distribution — use Option A or B for that.
+```sh
+xattr -dr com.apple.quarantine /Applications/HushBar.app
+```
+
+This is fine for a friend but not acceptable for public distribution — use
+Option A or B for that.
 
 ---
 
@@ -176,7 +178,7 @@ Users now download the DMG from your Releases page, open it, and drag HushBar to
 Applications. The direct download URL — needed for the Homebrew cask below — is:
 
 ```
-https://github.com/ardacanbakis/mcdrop/releases/download/v1.0/HushBar-1.0.dmg
+https://github.com/ardacanbakis/hushBar/releases/download/v1.0/HushBar-1.0.dmg
 ```
 
 ---
@@ -197,32 +199,17 @@ cd homebrew-tap
 mkdir -p Casks
 ```
 
-**5.2 Compute the DMG checksum:**
+**5.2 Copy the cask template** from this repo into your tap:
 
 ```sh
-shasum -a 256 HushBar-1.0.dmg
+cp /path/to/hushBar/Casks/hushbar.rb Casks/hushbar.rb
 ```
 
-**5.3 Add `Casks/hushbar.rb`:**
+Open `Casks/hushbar.rb` and replace `PASTE_SHA256_HERE` with the SHA-256
+printed by the build script, or compute it manually:
 
-```ruby
-cask "hushbar" do
-  version "1.0"
-  sha256 "PASTE_THE_SHA256_HERE"
-
-  url "https://github.com/ardacanbakis/mcdrop/releases/download/v#{version}/HushBar-#{version}.dmg"
-  name "HushBar"
-  desc "Mute your microphone globally from the menu bar"
-  homepage "https://ardacanbakis.com"
-
-  depends_on macos: ">= :ventura"
-
-  app "HushBar.app"
-
-  zap trash: [
-    "~/Library/Preferences/com.ardacanbakis.hushBar.plist",
-  ]
-end
+```sh
+shasum -a 256 dist/HushBar-1.0.dmg
 ```
 
 **5.4 Commit and push:**

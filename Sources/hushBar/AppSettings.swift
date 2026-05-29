@@ -229,6 +229,9 @@ final class AppSettings: ObservableObject {
     @Published var boldLabels: Bool {
         didSet { UserDefaults.standard.set(boldLabels, forKey: Keys.boldLabels) }
     }
+    @Published var preferencesOpenCount: Int {
+        didSet { UserDefaults.standard.set(preferencesOpenCount, forKey: Keys.preferencesOpenCount) }
+    }
 
     /// The preset currently shown in the menu bar. Falls back to the first.
     var selectedPreset: BarPreset {
@@ -240,7 +243,8 @@ final class AppSettings: ObservableObject {
         static let selectedPresetID = "selectedPresetID"
         static let toggleSound      = "toggleSound"
         static let fontSize         = "fontSize"
-        static let boldLabels       = "boldLabels"
+        static let boldLabels            = "boldLabels"
+        static let preferencesOpenCount  = "preferencesOpenCount"
     }
 
     static let defaultRed  = ColorComponents(r: 0.62, g: 0.09, b: 0.09)
@@ -348,7 +352,7 @@ final class AppSettings: ObservableObject {
            let sound = ToggleSound(rawValue: raw) {
             toggleSound = sound
         } else {
-            toggleSound = (d.object(forKey: "playSoundOnToggle") as? Bool == false) ? .none : .pop
+            toggleSound = (d.object(forKey: "playSoundOnToggle") as? Bool == false) ? .none : .funk
         }
 
         if let raw = d.string(forKey: Keys.fontSize),
@@ -363,6 +367,8 @@ final class AppSettings: ObservableObject {
         } else {
             boldLabels = true
         }
+
+        preferencesOpenCount = d.integer(forKey: Keys.preferencesOpenCount)
     }
 
     // MARK: - Preset mutation

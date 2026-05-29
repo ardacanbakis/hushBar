@@ -104,18 +104,22 @@ The 400ms suppression handled the immediate (~40ms) daemon reaction. But the dae
 
 ---
 
-## Debug Tooling Added
+## Debug Tooling (Added and Removed)
 
-`DebugLogger.swift` — singleton `@Published entries: [LogEntry]`, `log()`, `allText()`.
-`hushLog()` — replaces all `NSLog("hushBar: ...")` calls, routes to both system log and `DebugLogger`.
-`DebugLogView` in Preferences — fourth "Debug" tab (🐜 ant icon) with live-scrolling monospaced log, timestamps, Clear, Copy buttons, orange "DEV ONLY" banner.
+During the mute-oscillation investigation (Bugs 1–5 above), an in-app debug logger was temporarily added:
 
-**To remove before first public release:**
-- Remove `PrefsTab.debug` case from `PreferencesView.swift`
-- Remove the `.debug` tab entry from the `TabView`
-- Remove the `DebugLogView` struct (or keep it dormant)
-- `DebugLogger.swift` can stay (harmless) or be deleted
-- Replace `hushLog()` calls with plain `NSLog()` or remove them
+- `DebugLogger.swift` — singleton `@Published entries: [LogEntry]`, `log()`, `allText()`, `clear()`.
+- `hushLog()` — replaced all `NSLog("hushBar: ...")` calls, routing to both system log and `DebugLogger`.
+- `DebugLogView` in Preferences — fourth "Debug" tab (ant icon) with live-scrolling monospaced log, timestamps, Clear, and Copy-to-clipboard buttons. Orange "DEV ONLY" banner.
+
+This was the mechanism that let us diagnose and resolve the 5-bug oscillation sequence — the user would reproduce the issue, open the Debug tab, tap Copy, and paste the full timestamped log into the conversation.
+
+**Removed before first public release.** Changes applied:
+- `DebugLogger.swift` gutted to just the `hushLog()` wrapper around `NSLog` (all call sites preserved).
+- `PrefsTab.debug` case and the Debug `TabView` entry removed from `PreferencesView.swift`.
+- `DebugLogView` struct removed.
+
+If in-app logging is ever needed again, the pattern is: singleton with `@Published [LogEntry]`, a `hushLog()` shim, and a `TextEditor` + Copy button in a debug-only tab.
 
 ---
 
@@ -152,7 +156,7 @@ The 400ms suppression handled the immediate (~40ms) daemon reaction. But the dae
 
 ## Open Items
 
-- [ ] Remove Debug tab before first public release
+- [x] Remove Debug tab before first public release
 - [ ] Subscribe to Apple Developer Program
 - [ ] Set up Developer ID Application certificate + notarytool keychain profile
 - [ ] Create `github.com/ardacanbakis/homebrew-tap` repository

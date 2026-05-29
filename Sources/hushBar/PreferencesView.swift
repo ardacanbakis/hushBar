@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import KeyboardShortcuts
 
-enum PrefsTab: Hashable { case general, style, about, debug }
+enum PrefsTab: Hashable { case general, style, about }
 
 struct PreferencesView: View {
     @ObservedObject var mic: MicMuteController
@@ -11,6 +11,7 @@ struct PreferencesView: View {
     @State private var selectedTab: PrefsTab = .general
     @State private var editingPresetID: UUID?
     @State private var activeColorTarget: ColorTarget?
+    @State private var showLoginReminder = false
 
     private var showingColorPanel: Bool {
         selectedTab == .style && activeColorTarget != nil
@@ -40,15 +41,24 @@ struct PreferencesView: View {
             AboutView()
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(PrefsTab.about)
-
-            DebugLogView()
-                .tabItem { Label("Debug", systemImage: "ant") }
-                .tag(PrefsTab.debug)
         }
         .frame(width: showingColorPanel ? 936 : 720, height: 600)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showingColorPanel)
         .onChange(of: selectedTab) { _ in
             withAnimation { activeColorTarget = nil }
+        }
+        .onChange(of: settings.preferencesOpenCount) { count in
+            if count == 2 && !LaunchAtLogin.isEnabled {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    showLoginReminder = true
+                }
+            }
+        }
+        .alert("Tip: Launch at Login", isPresented: $showLoginReminder) {
+            Button("Enable") { LaunchAtLogin.isEnabled = true }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Want HushBar to start automatically when you log in? You can always change this in General settings.")
         }
     }
 
@@ -194,7 +204,7 @@ private struct GeneralSettingsView: View {
                 }
 
                 Button(action: onGoToAbout) {
-                    NeonWaveText(text: "Check my stuff →")
+                    NeonText("Check it out!", font: .system(size: 14, weight: .semibold))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
@@ -660,103 +670,24 @@ private struct BuyMeACoffeeButton: View {
     }
 }
 
-// MARK: - Neon wave text
+// MARK: - Neon text (no wave — steady glow with slow hue drift)
 
-private struct NeonWaveText: View {
+private struct NeonText: View {
     let text: String
+    var font: Font = .caption.weight(.semibold)
 
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
-            // Slowly oscillate between electric blue and cyan (hue 0.48 – 0.62)
             let hue = 0.55 + sin(t * 0.5) * 0.07
             let c = Color(hue: hue, saturation: 1, brightness: 1)
-            HStack(spacing: 0) {
-                ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
-                    Text(String(ch))
-                        .offset(y: ch == " " ? 0 : sin(t * 3.0 + Double(i) * 0.5) * 2.0)
-                }
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(c)
-            .shadow(color: c, radius: 4)
-            .shadow(color: c.opacity(0.7), radius: 8)
-            .shadow(color: c.opacity(0.35), radius: 16)
+            Text(text)
+                .font(font)
+                .foregroundStyle(c)
+                .shadow(color: c, radius: 4)
+                .shadow(color: c.opacity(0.7), radius: 8)
+                .shadow(color: c.opacity(0.35), radius: 16)
         }
-    }
-}
-
-// MARK: - Debug log (DEV ONLY — remove tab before release)
-
-private struct DebugLogView: View {
-    @ObservedObject private var logger = DebugLogger.shared
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Warning banner
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                Text("Dev only — remove before release")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Button("Clear") { logger.clear() }
-                    .controlSize(.small)
-                Button("Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(logger.allText(), forType: .string)
-                }
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(Color.orange.opacity(0.08))
-
-            Divider()
-
-            if logger.entries.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary.opacity(0.4))
-                    Text("No log entries yet")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 1) {
-                            ForEach(logger.entries) { entry in
-                                HStack(alignment: .top, spacing: 6) {
-                                    Text(entry.timeLabel)
-                                        .font(.system(.caption2, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .frame(width: 84, alignment: .leading)
-                                    Text(entry.message)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .textSelection(.enabled)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    Spacer(minLength: 0)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 2)
-                                .id(entry.id)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                    }
-                    .onChange(of: logger.entries.count) { _ in
-                        if let last = logger.entries.last {
-                            proxy.scrollTo(last.id, anchor: .bottom)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -768,6 +699,8 @@ private struct DancingName: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
+            let hue = 0.55 + sin(t * 0.5) * 0.07
+            let c = Color(hue: hue, saturation: 1, brightness: 1)
             HStack(spacing: 0) {
                 ForEach(Array(text.enumerated()), id: \.offset) { index, ch in
                     Text(String(ch))
@@ -775,11 +708,10 @@ private struct DancingName: View {
                 }
             }
             .font(.callout.weight(.bold))
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [.red, .orange, .yellow, .green, .blue, .purple, .red],
-                    startPoint: .leading, endPoint: .trailing))
-            .hueRotation(.degrees(t * 60))
+            .foregroundStyle(c)
+            .shadow(color: c, radius: 4)
+            .shadow(color: c.opacity(0.7), radius: 8)
+            .shadow(color: c.opacity(0.35), radius: 16)
         }
         .onTapGesture { openURL(url) }
         .help("Open ardacanbakis.com")

@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showPreferences() {
+        settings.preferencesOpenCount += 1
         if preferencesWindow == nil {
             let hosting = NSHostingController(rootView: PreferencesView(mic: mic, settings: settings))
             let window = NSWindow(contentViewController: hosting)

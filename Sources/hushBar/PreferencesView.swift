@@ -204,7 +204,7 @@ private struct GeneralSettingsView: View {
                 }
 
                 Button(action: onGoToAbout) {
-                    NeonText("Check it out!", font: .system(size: 14, weight: .semibold))
+                    NeonText(text: "Check it out!", font: .system(size: 14, weight: .semibold))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)

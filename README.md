@@ -1,6 +1,8 @@
-# HushBar
+# HushBar — macOS
 
 **Mute your microphone from the menu bar — globally, instantly, across every app.**
+
+> **Windows version:** [ardacanbakis/hushBar-windows](https://github.com/ardacanbakis/hushBar-windows)
 
 HushBar lives entirely in the menu bar (no Dock icon, no window). One click or a global keyboard shortcut mutes or unmutes your mic system-wide, because it flips the actual hardware mute flag on your audio device — not just a per-app setting. Every app sees it at once.
 
@@ -68,7 +70,7 @@ Sources/hushBar/
   HotKeyManager.swift           Global shortcut via KeyboardShortcuts
   LaunchAtLogin.swift           SMAppService login-item toggle
   BrandIcons.swift              Hand-built vector social icons for the About tab
-  DebugLogger.swift             Dev-only in-app log panel (remove before release)
+  DebugLogger.swift             hushLog() diagnostic wrapper (NSLog shim)
 docs/
   index.html                    Project website (GitHub Pages)
 ```

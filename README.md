@@ -77,14 +77,25 @@ docs/
 
 ---
 
-## Requirements
+## Installation
 
-- macOS 13 Ventura or later
-- Xcode 15+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) to build from source
+**macOS 13 Ventura or later**
+
+1. Download **[HushBar.zip](https://github.com/ardacanbakis/hushBar/releases/download/v1.0/HushBar.zip)** from the [latest release](https://github.com/ardacanbakis/hushBar/releases).
+2. Unzip and drag `HushBar.app` to your `/Applications` folder.
+3. Open it. On first launch macOS may show a security warning — right-click the app → **Open** to proceed.
+
+The app has no Dock icon. Look for the badge in the top-right menu bar.
+
+**Windows**
+
+Download **[HushBar-Setup.exe](https://github.com/ardacanbakis/hushBar-windows/releases/download/v1.0/HushBar-Setup.exe)** and run the installer.
 
 ---
 
 ## Building from source
+
+For contributors. Requires macOS, Xcode 15+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```sh
 brew install xcodegen
@@ -93,10 +104,6 @@ cd hushBar
 xcodegen generate
 open hushBar.xcodeproj
 ```
-
-Select the **hushBar** scheme → **My Mac** → **⌘R**. The app has no Dock icon — look for the badge in the top-right menu bar.
-
-> Re-run `xcodegen generate` after pulling changes to `project.yml` or when source files are added or removed.
 
 Full distribution instructions (signing, notarization, DMG, Homebrew cask) are in [DISTRIBUTION.md](DISTRIBUTION.md).
 

@@ -330,6 +330,114 @@
     .copyright a { color: inherit; text-decoration: none; transition: color .2s; }
     .copyright a:hover { color: var(--text-2); }
 
+    /* ── NAV SPLIT-DOWNLOAD BUTTON ── */
+    .dl-split {
+      display: inline-flex; align-items: stretch;
+      border-radius: 8px; overflow: visible;
+      position: relative;
+    }
+    .dl-split .dl-main {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 13px; border-radius: 8px 0 0 8px;
+      font-size: 13px; font-weight: 600;
+      color: #fff; background: var(--red);
+      text-decoration: none; border: none; cursor: pointer;
+      transition: filter .2s;
+      white-space: nowrap;
+    }
+    .dl-split .dl-main:hover { filter: brightness(1.1); }
+    .dl-split .dl-arrow {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px;
+      background: var(--red); color: #fff; border: none; cursor: pointer;
+      border-left: 1px solid rgba(255,255,255,0.18);
+      border-radius: 0 8px 8px 0;
+      transition: filter .2s;
+    }
+    .dl-split .dl-arrow:hover { filter: brightness(1.15); }
+    .dl-split .dl-arrow svg { pointer-events: none; }
+    .dl-dropdown {
+      display: none; position: absolute;
+      top: calc(100% + 6px); right: 0;
+      min-width: 200px;
+      background: var(--surface2); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.6);
+      z-index: 300; overflow: hidden;
+      animation: dropIn .15s ease;
+    }
+    @keyframes dropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+    .dl-dropdown.open { display: block; }
+    .dl-opt {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 16px;
+      font-size: 13px; font-weight: 500; color: var(--text);
+      text-decoration: none; cursor: pointer;
+      transition: background .15s;
+    }
+    .dl-opt:hover { background: rgba(255,255,255,0.06); }
+    .dl-opt svg { flex-shrink: 0; opacity: .75; }
+    .dl-opt-sub { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+    /* ── DOWNLOAD MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(8px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface2);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 40px 36px 32px;
+      max-width: 460px; width: calc(100% - 40px);
+      text-align: center;
+      box-shadow: 0 32px 80px rgba(0,0,0,.7);
+      animation: modalIn .22s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform:translateY(12px) scale(.97); } to { opacity:1; transform:none; } }
+    .modal-icon { font-size: 44px; margin-bottom: 16px; line-height: 1; }
+    .modal-title { font-size: 22px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 8px; }
+    .modal-sub { font-size: 14px; color: var(--text-2); margin-bottom: 28px; line-height: 1.6; }
+    .modal-divider { height: 1px; background: var(--border); margin: 0 0 24px; }
+    .modal-free { font-size: 14px; color: var(--text-2); line-height: 1.7; margin-bottom: 24px; }
+    .modal-close {
+      display: block; margin-top: 16px;
+      font-size: 12px; color: var(--text-3); cursor: pointer;
+      background: none; border: none; padding: 4px 8px;
+      transition: color .2s;
+    }
+    .modal-close:hover { color: var(--text-2); }
+
+    /* ── SUPPORT SECTION ── */
+    .support-section {
+      padding: 88px var(--gutter);
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+    }
+    .support-emoji { font-size: 40px; margin-bottom: 20px; }
+    .support-title {
+      font-size: clamp(26px, 3.5vw, 38px);
+      font-weight: 800; letter-spacing: -1px; margin-bottom: 16px;
+    }
+    .support-body {
+      font-size: 16px; color: var(--text-2);
+      max-width: 480px; line-height: 1.75; margin-bottom: 32px;
+    }
+    .btn-coffee {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 13px 28px; border-radius: 12px;
+      font-size: 15px; font-weight: 700;
+      color: #1a1a1a; background: #FFDD00;
+      text-decoration: none; border: none;
+      transition: filter .2s, transform .15s;
+      box-shadow: 0 4px 20px rgba(255,221,0,0.25);
+    }
+    .btn-coffee:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-coffee:active { transform: none; }
+
     /* ── SCROLL TO TOP ── */
     .scroll-top {
       position: fixed;
@@ -380,9 +488,22 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
       GitHub
     </a>
-    <a href="https://github.com/ardacanbakis/hushBar/releases" class="btn-red" target="_blank" rel="noopener">
-      Download free
-    </a>
+    <div class="dl-split" id="navDlSplit">
+      <button class="dl-main" onclick="openDlDropdown(event)">Download free</button>
+      <button class="dl-arrow" onclick="openDlDropdown(event)" aria-label="Choose platform">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="dl-dropdown" id="navDlDropdown">
+        <a class="dl-opt" href="#" onclick="triggerDownload(event,'https://github.com/ardacanbakis/hushBar/releases/download/v1.0/HushBar.zip','macOS')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          <div><div>Download for macOS</div><div class="dl-opt-sub">macOS 13 Ventura+</div></div>
+        </a>
+        <a class="dl-opt" href="#" onclick="triggerDownload(event,'https://github.com/ardacanbakis/hushBar-windows/releases/download/v1.0/HushBar-Setup.exe','Windows')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.557L10.333 4.5V11.5H3V5.557zM11.333 4.355L21 3V11.5H11.333V4.355zM3 12.5H10.333V19.5L3 18.443V12.5zM11.333 12.5H21V21L11.333 19.645V12.5z"/></svg>
+          <div><div>Download for Windows</div><div class="dl-opt-sub">Windows 10+</div></div>
+        </a>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -392,17 +513,17 @@
   <h1>Mute your mic.<br><span class="accent">Globally.</span> Instantly.</h1>
   <p class="hero-sub">One click in your menu bar silences your microphone across every app on your Mac — Zoom, Discord, browsers, all of them at once.</p>
   <div class="cta-row">
-    <a href="https://github.com/ardacanbakis/hushBar/releases/download/v1.0/HushBar.zip" class="btn-red btn-red-lg">
+    <a href="#" class="btn-red btn-red-lg" onclick="triggerDownload(event,'https://github.com/ardacanbakis/hushBar/releases/download/v1.0/HushBar.zip','macOS')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
       Download for macOS
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
     </a>
-    <a href="https://github.com/ardacanbakis/hushBar-windows/releases/download/v1.0/HushBar-Setup.exe" class="btn-red btn-red-lg">
+    <a href="https://github.com/ardacanbakis/hushBar" class="btn-ghost btn-ghost-lg" target="_blank" rel="noopener">View on GitHub</a>
+    <a href="#" class="btn-red btn-red-lg" onclick="triggerDownload(event,'https://github.com/ardacanbakis/hushBar-windows/releases/download/v1.0/HushBar-Setup.exe','Windows')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M3 5.557L10.333 4.5V11.5H3V5.557zM11.333 4.355L21 3V11.5H11.333V4.355zM3 12.5H10.333V19.5L3 18.443V12.5zM11.333 12.5H21V21L11.333 19.645V12.5z"/></svg>
       Download for Windows
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
     </a>
-    <a href="https://github.com/ardacanbakis/hushBar" class="btn-ghost btn-ghost-lg" target="_blank" rel="noopener">View on GitHub</a>
   </div>
 
   <!-- macOS menu bar mockup -->
@@ -529,6 +650,22 @@
 
 <div class="divider"></div>
 
+<!-- ── SUPPORT ── -->
+<section class="support-section" id="support">
+  <div class="support-emoji">☕</div>
+  <h2 class="support-title">Built with love, free for everyone</h2>
+  <p class="support-body">
+    This app is free for everyone, and I plan to keep it that way.<br>
+    If HushBar made your day a little easier and you'd like to support future updates, a small donation would mean a lot.
+  </p>
+  <a href="https://buymeacoffee.com/ardacanbakis" class="btn-coffee" target="_blank" rel="noopener">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 3.309 2.691 6 6 6h4c3.309 0 6-2.691 6-6v-1h1a3 3 0 000-6h-1V3zm1 4h-1V5h1a1 1 0 010 2zm-3 6c0 2.206-1.794 4-4 4h-4c-2.206 0-4-1.794-4-4V5h12v8z"/></svg>
+    Buy me a coffee
+  </a>
+</section>
+
+<div class="divider"></div>
+
 <!-- ── FOOTER ── -->
 <footer>
   <a href="#" class="foot-brand"><span style="color:var(--red)">hush</span><span style="color:var(--text)">Bar</span></a>
@@ -560,6 +697,25 @@
     &nbsp;© 2026
   </p>
 </footer>
+
+<!-- ── DOWNLOAD MODAL ── -->
+<div class="modal-overlay" id="dlModal" onclick="closeDlModal(event)">
+  <div class="modal-box">
+    <div class="modal-icon">🎉</div>
+    <div class="modal-title">Thanks for downloading!</div>
+    <div class="modal-sub" id="dlModalSub">Your download will start shortly.</div>
+    <div class="modal-divider"></div>
+    <p class="modal-free">
+      This app is free for everyone, and I plan to keep it that way.<br>
+      If HushBar made your day a little easier and you'd like to support future updates, a small donation would mean a lot.
+    </p>
+    <a href="https://buymeacoffee.com/ardacanbakis" class="btn-coffee" target="_blank" rel="noopener" style="margin:0 auto;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 3.309 2.691 6 6 6h4c3.309 0 6-2.691 6-6v-1h1a3 3 0 000-6h-1V3zm1 4h-1V5h1a1 1 0 010 2zm-3 6c0 2.206-1.794 4-4 4h-4c-2.206 0-4-1.794-4-4V5h12v8z"/></svg>
+      Buy me a coffee
+    </a>
+    <button class="modal-close" onclick="document.getElementById('dlModal').classList.remove('open')">Dismiss</button>
+  </div>
+</div>
 
 <!-- ── SCROLL TO TOP ── -->
 <button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">
@@ -595,6 +751,32 @@
 
   micSection.addEventListener('click', () => setMicState(!micLive));
   setInterval(() => setMicState(!micLive), 3500);
+
+  // Nav dropdown
+  function openDlDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('navDlDropdown').classList.toggle('open');
+  }
+  document.addEventListener('click', () => {
+    document.getElementById('navDlDropdown').classList.remove('open');
+  });
+
+  // Download modal
+  function triggerDownload(e, url, platform) {
+    e.preventDefault();
+    const modal = document.getElementById('dlModal');
+    document.getElementById('dlModalSub').textContent =
+      'Your ' + platform + ' download will start shortly.';
+    modal.classList.add('open');
+    document.getElementById('navDlDropdown').classList.remove('open');
+    setTimeout(() => { window.location.href = url; }, 800);
+  }
+
+  function closeDlModal(e) {
+    if (e.target === document.getElementById('dlModal')) {
+      document.getElementById('dlModal').classList.remove('open');
+    }
+  }
 </script>
 
 </body>

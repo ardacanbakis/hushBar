@@ -20,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Offer to move into /Applications when launched from the DMG or Downloads.
+        // If the user accepts, the app relaunches from /Applications and this
+        // instance terminates, so do this before any controllers spin up.
+        MoveToApplications.promptToMoveIfNeeded()
+
         requestMicrophoneAccess()
         statusController = StatusItemController(mic: mic, settings: settings) { [weak self] in
             self?.showPreferences()

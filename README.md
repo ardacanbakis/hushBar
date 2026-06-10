@@ -61,16 +61,17 @@ Support/Info.plist              LSUIElement flag, mic usage description
 Support/hushBar.entitlements    audio-input entitlement (sandbox off for Developer ID)
 Sources/hushBar/
   AppDelegate.swift             Entry point, mic-permission request, preferences window
+  MoveToApplications.swift      Offers to move into /Applications on first launch
   MicMuteController.swift       CoreAudio mute + listeners + intent re-assertion
   StatusItemController.swift    NSStatusItem, click routing, context menu
   PillRenderer.swift            Draws all badge shapes via NSBezierPath
   AppSettings.swift             BarPreset, FontSize, ToggleSound, UserDefaults persistence
-  PreferencesView.swift         SwiftUI prefs window (General / Style / About / Debug)
+  PreferencesView.swift         SwiftUI prefs window (General / Style / About)
   ColorEditorPanel.swift        Custom inline color picker (palette + RGB + hex)
   HotKeyManager.swift           Global shortcut via KeyboardShortcuts
   LaunchAtLogin.swift           SMAppService login-item toggle
   BrandIcons.swift              Hand-built vector social icons for the About tab
-  DebugLogger.swift             hushLog() diagnostic wrapper (NSLog shim)
+  DebugLogger.swift             hushLog() wrapper (NSLog shim)
 docs/
   index.html                    Project website (GitHub Pages)
 ```

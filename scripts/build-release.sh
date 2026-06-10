@@ -75,13 +75,37 @@ echo "    $DIST/$ZIP_NAME  ($(du -sh "$DIST/$ZIP_NAME" | cut -f1))"
 if command -v create-dmg &>/dev/null; then
     echo "==> Creating $DMG_NAME"
     rm -f "$DIST/$DMG_NAME"
+
+    # Light cream (#fafaf7) background so Finder's dark icon labels stay legible.
+    DMG_BG="$(mktemp -t hushbar-dmg-bg).png"
+    python3 -c '
+import struct, zlib, sys
+w, h, color = 520, 320, (250, 250, 247)
+raw = b"".join(b"\x00" + bytes(color) * w for _ in range(h))
+def chunk(t, d):
+    c = struct.pack(">I", len(d)) + t + d
+    return c + struct.pack(">I", zlib.crc32(c[4:]) & 0xffffffff)
+png = (b"\x89PNG\r\n\x1a\n"
+       + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+       + chunk(b"IDAT", zlib.compress(raw))
+       + chunk(b"IEND", b""))
+open(sys.argv[1], "wb").write(png)
+' "$DMG_BG"
+
+    # Use the real bundle basename (handles the lowercase "hushBar.app").
+    APP_BUNDLE="$(basename "$APP_PATH")"
     create-dmg \
         --volname "$APP_NAME" \
         --window-size 520 320 \
-        --icon "$APP_NAME.app" 140 150 \
-        --app-drop-link 380 150 \
+        --icon-size 96 \
+        --text-size 12 \
+        --background "$DMG_BG" \
+        --icon "$APP_BUNDLE" 140 160 \
+        --app-drop-link 380 160 \
         "$DIST/$DMG_NAME" \
         "$APP_PATH"
+
+    rm -f "$DMG_BG"
 
     if [ "$SIGN" = "1" ]; then
         echo "==> Notarizing DMG"

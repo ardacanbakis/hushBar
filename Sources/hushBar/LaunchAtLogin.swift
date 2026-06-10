@@ -17,7 +17,7 @@ enum LaunchAtLogin {
                     }
                 }
             } catch {
-                NSLog("hushBar: failed to update launch-at-login: \(error)")
+                hushLog("failed to update launch-at-login: \(error)")
             }
         }
     }

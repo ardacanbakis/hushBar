@@ -35,6 +35,7 @@ xcodebuild \
     -scheme "$SCHEME" \
     -configuration Release \
     -derivedDataPath "$DERIVED_DATA" \
+    -clonedSourcePackagesDirPath "$DERIVED_DATA/SourcePackages" \
     clean build \
     | xcpretty 2>/dev/null || cat
 
